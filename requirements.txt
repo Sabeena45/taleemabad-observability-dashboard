@@ -1,0 +1,12 @@
+# Taleemabad Observability Dashboard
+# For Replit deployment
+
+# Core
+streamlit>=1.29.0
+
+# Data visualization
+plotly>=5.18.0
+pandas>=2.0.0
+
+# Utilities
+python-dotenv>=1.0.0
