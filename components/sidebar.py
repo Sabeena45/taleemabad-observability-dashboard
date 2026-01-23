@@ -26,7 +26,7 @@ def render_sidebar() -> dict:
         st.markdown("### 🌍 Region")
         region = st.radio(
             "Select region to view",
-            options=["Combined", "Rawalpindi", "Islamabad", "Balochistan"],
+            options=["Combined", "Balochistan", "Islamabad", "Moawin", "Rawalpindi (Coming Soon)"],
             index=0,
             label_visibility="collapsed",
             help="Filter all data by geographic region"
@@ -35,9 +35,10 @@ def render_sidebar() -> dict:
         # Show region description
         region_descriptions = {
             "Combined": "All regions combined",
-            "Rawalpindi": "Punjab - Rawalpindi clusters",
-            "Islamabad": "ICT - Federal area schools",
-            "Balochistan": "Winter School program data"
+            "Balochistan": "Winter School FLN program (522 AI + 54 human observations)",
+            "Islamabad": "ICT - Federal area schools (BigQuery)",
+            "Moawin": "SchoolPilot platform (236 schools, 602 teachers)",
+            "Rawalpindi (Coming Soon)": "⚠️ Database access pending"
         }
         st.caption(region_descriptions[region])
 
@@ -100,9 +101,12 @@ def render_sidebar() -> dict:
         st.page_link("pages/2_observations.py", label="👁️ Observations", icon="👁️")
         st.page_link("pages/3_students.py", label="👨‍🎓 Student Outcomes", icon="👨‍🎓")
 
+    # Normalize region name (remove "(Coming Soon)" suffix)
+    normalized_region = region.replace(" (Coming Soon)", "") if "(Coming Soon)" in region else region
+
     # Return filter values
     return {
-        "region": region,
+        "region": normalized_region,
         "subject": subject if subject != "All Subjects" else None,
         "time_period": time_period,
         "observation_type": obs_type
@@ -137,19 +141,26 @@ def get_region_filter(region: str, database: str) -> str:
 
     filters = {
         "Rawalpindi": {
-            "schoolpilot": "cluster_id IN (SELECT id FROM clusters WHERE name ILIKE '%rawalpindi%')",
-            "rumi": "1=1",  # Need to add city field to users
-            "digital_coach": "1=0"  # No Rawalpindi data in Digital Coach
+            "schoolpilot": "1=0",  # Coming soon - no access yet
+            "rumi": "1=0",
+            "digital_coach": "1=0"
         },
         "Islamabad": {
-            "schoolpilot": "organization_id IN (SELECT id FROM organizations WHERE name ILIKE '%islamabad%' OR name ILIKE '%ict%')",
-            "rumi": "1=1",  # Need to add city field to users
-            "digital_coach": "1=0"  # No Islamabad data in Digital Coach
+            "schoolpilot": "1=0",  # Islamabad uses BigQuery
+            "rumi": "1=1",
+            "digital_coach": "1=0",
+            "bigquery": "1=1"  # All BigQuery data is Islamabad
         },
         "Balochistan": {
             "schoolpilot": "1=0",  # No Balochistan in SchoolPilot
-            "rumi": "1=0",  # No Balochistan in Rumi
-            "digital_coach": "1=1"  # All Digital Coach data is Balochistan
+            "rumi": "1=0",
+            "digital_coach": "1=1",  # All Digital Coach data is Balochistan
+            "balochistan_rds": "1=1"  # NIETE Balochistan database
+        },
+        "Moawin": {
+            "schoolpilot": "1=1",  # All SchoolPilot data is Moawin
+            "rumi": "1=0",
+            "digital_coach": "1=0"
         }
     }
 
