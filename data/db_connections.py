@@ -5,6 +5,7 @@ Handles connections to Balochistan, Islamabad, and Moawin databases.
 import os
 from typing import Optional, Any, Dict
 from functools import lru_cache
+from urllib.parse import urlparse
 
 # Import psycopg2 for PostgreSQL connections
 try:
@@ -13,6 +14,26 @@ try:
     PSYCOPG2_AVAILABLE = True
 except ImportError:
     PSYCOPG2_AVAILABLE = False
+
+
+def parse_connection_url(url: str) -> Dict[str, Any]:
+    """
+    Parse a PostgreSQL connection URL into components.
+
+    Args:
+        url: PostgreSQL URL like postgresql://user:pass@host:port/db?sslmode=require
+
+    Returns:
+        Dict with host, port, database, user, password keys
+    """
+    parsed = urlparse(url)
+    return {
+        "host": parsed.hostname or "localhost",
+        "port": int(parsed.port) if parsed.port else 5432,
+        "database": parsed.path.lstrip("/") if parsed.path else "postgres",
+        "user": parsed.username or "",
+        "password": parsed.password or ""
+    }
 
 # Import BigQuery client
 try:
@@ -33,15 +54,21 @@ except ImportError:
 # BALOCHISTAN DATABASE (Neon PostgreSQL - READ-ONLY)
 # ============================================================================
 # Winter School FLN programme observations
-# Updated: January 28, 2026 - Now using Neon (no SSH tunnel needed)
+# Updated: February 6, 2026 - Now supports URL-format connection strings
 
-BALOCHISTAN_CONFIG = {
-    "host": os.environ.get("NEON_BALOCHISTAN_HOST", "ep-divine-mode-ahm03w5x.c-3.us-east-1.aws.neon.tech"),
-    "port": int(os.environ.get("NEON_BALOCHISTAN_PORT", 5432)),
-    "database": os.environ.get("NEON_BALOCHISTAN_DB", "neondb"),
-    "user": os.environ.get("NEON_BALOCHISTAN_USER", "neondb_owner"),
-    "password": os.environ.get("NEON_BALOCHISTAN_PASSWORD", "npg_RQHvjt6MOXe3")
-}
+# Check for URL-format first (Railway uses this format)
+_balochistan_url = os.environ.get("NEON_BALOCHISTAN_URL")
+if _balochistan_url:
+    BALOCHISTAN_CONFIG = parse_connection_url(_balochistan_url)
+else:
+    # Fallback to individual env vars or defaults
+    BALOCHISTAN_CONFIG = {
+        "host": os.environ.get("NEON_BALOCHISTAN_HOST", "ep-divine-mode-ahm03w5x.c-3.us-east-1.aws.neon.tech"),
+        "port": int(os.environ.get("NEON_BALOCHISTAN_PORT", 5432)),
+        "database": os.environ.get("NEON_BALOCHISTAN_DB", "neondb"),
+        "user": os.environ.get("NEON_BALOCHISTAN_USER", "neondb_owner"),
+        "password": os.environ.get("NEON_BALOCHISTAN_PASSWORD", "npg_RQHvjt6MOXe3")
+    }
 
 
 def get_balochistan_connection():
@@ -173,6 +200,21 @@ def query_islamabad(sql: str) -> list:
 # SchoolPilot is accessed via MCP tool, not direct connection
 # The MCP tool mcp__schoolpilot-db__query handles the connection
 
+# Check for SchoolPilot URL-format first (Railway uses this format)
+_schoolpilot_url = os.environ.get("NEON_SCHOOLPILOT_URL")
+if _schoolpilot_url:
+    MOAWIN_CONFIG = parse_connection_url(_schoolpilot_url)
+else:
+    # Fallback to defaults
+    MOAWIN_CONFIG = {
+        "host": "ep-lucky-flower-af17db2g.c-2.us-west-2.aws.neon.tech",
+        "port": 5432,
+        "database": "neondb",
+        "user": "analyst_readonly_schoolpilot",
+        "password": os.environ.get("SCHOOLPILOT_DB_PASSWORD", "readonly_schoolpilot_2026")
+    }
+
+
 def query_moawin_direct(sql: str) -> list:
     """
     Direct query to SchoolPilot database (for non-MCP environments).
@@ -187,14 +229,6 @@ def query_moawin_direct(sql: str) -> list:
     """
     if not PSYCOPG2_AVAILABLE:
         return []
-
-    MOAWIN_CONFIG = {
-        "host": "ep-lucky-flower-af17db2g.c-2.us-west-2.aws.neon.tech",
-        "port": 5432,
-        "database": "neondb",
-        "user": "analyst_readonly_schoolpilot",
-        "password": os.environ.get("SCHOOLPILOT_DB_PASSWORD", "readonly_schoolpilot_2026")
-    }
 
     try:
         conn = psycopg2.connect(
@@ -222,13 +256,19 @@ def query_moawin_direct(sql: str) -> list:
 # RUMI DATABASE (Supabase)
 # ============================================================================
 
-RUMI_CONFIG = {
-    "host": "aws-1-ap-southeast-1.pooler.supabase.com",
-    "port": 6543,
-    "database": "postgres",
-    "user": "analyst.jlpenspfdcwxkopaidys",
-    "password": os.environ.get("RUMI_DB_PASSWORD", "RumiAnalytics2026!")
-}
+# Check for URL-format first (Railway uses this format)
+_rumi_url = os.environ.get("RUMI_DB_URL")
+if _rumi_url:
+    RUMI_CONFIG = parse_connection_url(_rumi_url)
+else:
+    # Fallback to defaults
+    RUMI_CONFIG = {
+        "host": "aws-1-ap-southeast-1.pooler.supabase.com",
+        "port": 6543,
+        "database": "postgres",
+        "user": "analyst.jlpenspfdcwxkopaidys",
+        "password": os.environ.get("RUMI_DB_PASSWORD", "RumiAnalytics2026!")
+    }
 
 
 def get_rumi_connection():
