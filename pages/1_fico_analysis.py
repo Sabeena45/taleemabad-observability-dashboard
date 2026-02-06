@@ -141,19 +141,19 @@ def render_overview(filters):
     ))
 
     base_layout = plotly_layout_defaults(height=340)
+    base_layout['margin'] = dict(t=10, b=40, l=150, r=60)
+    base_layout['xaxis'] = dict(
+        range=[0, 100],
+        showgrid=True,
+        gridcolor='#F3F4F6',
+        zeroline=False,
+        ticksuffix='%',
+        tickfont=dict(size=11, color='#6B7280')
+    )
+    base_layout['yaxis'] = dict(showgrid=False, autorange='reversed', tickfont=dict(size=12, color='#374151'))
     fig.update_layout(
         **base_layout,
-        showlegend=False,
-        margin=dict(t=10, b=40, l=150, r=60),
-        xaxis=dict(
-            range=[0, 100],
-            showgrid=True,
-            gridcolor='#F3F4F6',
-            zeroline=False,
-            ticksuffix='%',
-            tickfont=dict(size=11, color='#6B7280')
-        ),
-        yaxis=dict(showgrid=False, autorange='reversed', tickfont=dict(size=12, color='#374151'))
+        showlegend=False
     )
 
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
@@ -374,6 +374,8 @@ def render_section_c_detail(filters):
         ))
 
         base_layout = plotly_layout_defaults(height=240)
+        base_layout['xaxis'] = dict(showgrid=False)
+        base_layout['yaxis'] = dict(showgrid=True, gridcolor='#F3F4F6', zeroline=False, title=None)
         fig.update_layout(
             **base_layout,
             barmode='stack',
@@ -384,9 +386,7 @@ def render_section_c_detail(filters):
                 xanchor='right',
                 x=1,
                 font=dict(size=11, family="Inter, -apple-system, sans-serif")
-            ),
-            xaxis=dict(showgrid=False),
-            yaxis=dict(showgrid=True, gridcolor='#F3F4F6', zeroline=False, title=None)
+            )
         )
 
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
@@ -443,6 +443,7 @@ def render_section_d_detail(filters):
         )])
 
         base_layout = plotly_layout_defaults(height=220)
+        base_layout['margin'] = dict(t=10, b=40, l=10, r=10)
         fig.update_layout(
             **base_layout,
             showlegend=True,
@@ -454,7 +455,6 @@ def render_section_d_detail(filters):
                 x=0.5,
                 font=dict(size=12, family="Inter, -apple-system, sans-serif")
             ),
-            margin=dict(t=10, b=40, l=10, r=10),
             annotations=[dict(
                 text=f'{student_talk}%',
                 x=0.5, y=0.5,

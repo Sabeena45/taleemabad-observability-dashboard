@@ -119,19 +119,19 @@ def render_subject_scores(filters):
     ))
 
     base_layout = plotly_layout_defaults(height=280)
+    base_layout['margin'] = dict(t=10, b=40, l=100, r=60)
+    base_layout['xaxis'] = dict(
+        range=[0, 100],
+        showgrid=True,
+        gridcolor='#F3F4F6',
+        zeroline=False,
+        ticksuffix='%',
+        tickfont=dict(size=11, color='#6B7280')
+    )
+    base_layout['yaxis'] = dict(showgrid=False, autorange='reversed', tickfont=dict(size=12, color='#374151'))
     fig.update_layout(
         **base_layout,
-        showlegend=False,
-        margin=dict(t=10, b=40, l=100, r=60),
-        xaxis=dict(
-            range=[0, 100],
-            showgrid=True,
-            gridcolor='#F3F4F6',
-            zeroline=False,
-            ticksuffix='%',
-            tickfont=dict(size=11, color='#6B7280')
-        ),
-        yaxis=dict(showgrid=False, autorange='reversed', tickfont=dict(size=12, color='#374151'))
+        showlegend=False
     )
 
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
@@ -184,18 +184,18 @@ def render_attendance(filters):
     )
 
     base_layout = plotly_layout_defaults(height=280)
+    base_layout['xaxis'] = dict(showgrid=False)
+    base_layout['yaxis'] = dict(
+        range=[0, 100],
+        showgrid=True,
+        gridcolor='#F3F4F6',
+        zeroline=False,
+        ticksuffix='%',
+        tickfont=dict(size=11, color='#6B7280')
+    )
     fig.update_layout(
         **base_layout,
-        showlegend=False,
-        xaxis=dict(showgrid=False),
-        yaxis=dict(
-            range=[0, 100],
-            showgrid=True,
-            gridcolor='#F3F4F6',
-            zeroline=False,
-            ticksuffix='%',
-            tickfont=dict(size=11, color='#6B7280')
-        )
+        showlegend=False
     )
 
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
@@ -289,17 +289,17 @@ def render_reading_assessments(filters):
     ))
 
     base_layout = plotly_layout_defaults(height=280)
+    base_layout['xaxis'] = dict(showgrid=False, tickfont=dict(size=12, color='#374151'))
+    base_layout['yaxis'] = dict(
+        showgrid=True,
+        gridcolor='#F3F4F6',
+        zeroline=False,
+        title=None,
+        tickfont=dict(size=11, color='#6B7280')
+    )
     fig.update_layout(
         **base_layout,
-        showlegend=False,
-        xaxis=dict(showgrid=False, tickfont=dict(size=12, color='#374151')),
-        yaxis=dict(
-            showgrid=True,
-            gridcolor='#F3F4F6',
-            zeroline=False,
-            title=None,
-            tickfont=dict(size=11, color='#6B7280')
-        )
+        showlegend=False
     )
 
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})

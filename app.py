@@ -198,20 +198,20 @@ def render_teaching_tab(filters):
     ))
 
     base_layout = plotly_layout_defaults(height=320)
-    # Override margin for this chart with labels on left
+    # Override margin and axes for this chart with labels on left
     base_layout['margin'] = dict(t=20, b=40, l=140, r=60)
+    base_layout['xaxis'] = dict(
+        range=[0, 100],
+        showgrid=True,
+        gridcolor='#F3F4F6',
+        zeroline=False,
+        ticksuffix='%',
+        tickfont=dict(size=11, color='#6B7280')
+    )
+    base_layout['yaxis'] = dict(showgrid=False, autorange='reversed', tickfont=dict(size=12, color='#374151'))
     fig.update_layout(
         **base_layout,
-        showlegend=False,
-        xaxis=dict(
-            range=[0, 100],
-            showgrid=True,
-            gridcolor='#F3F4F6',
-            zeroline=False,
-            ticksuffix='%',
-            tickfont=dict(size=11, color='#6B7280')
-        ),
-        yaxis=dict(showgrid=False, autorange='reversed', tickfont=dict(size=12, color='#374151'))
+        showlegend=False
     )
 
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
