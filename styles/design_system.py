@@ -540,10 +540,12 @@ def insight_card(content: str, border_color: str = None, title: str = None) -> s
                     letter-spacing: 0.05em; margin-bottom: 0.75rem;">{title}</div>
     ''' if title else ''
 
+    # Use inline styles for content to ensure proper rendering in Streamlit
     return f'''
-    <div class="insight-card" style="{border_style}">
+    <div style="background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06); {border_style}">
         {title_html}
-        <div class="insight-highlight">{content}</div>
+        <div style="font-size: 1.0625rem; color: #1A1A1A; line-height: 1.6;">{content}</div>
     </div>
     '''
 
