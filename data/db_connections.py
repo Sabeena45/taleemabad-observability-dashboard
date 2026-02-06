@@ -30,76 +30,42 @@ except ImportError:
 
 
 # ============================================================================
-# BALOCHISTAN DATABASE (NIETE RDS via SSH Tunnel)
+# BALOCHISTAN DATABASE (Neon PostgreSQL - READ-ONLY)
 # ============================================================================
+# Winter School FLN programme observations
+# Updated: January 28, 2026 - Now using Neon (no SSH tunnel needed)
 
 BALOCHISTAN_CONFIG = {
-    # SSH Tunnel settings
-    "ssh_host": "52.76.227.229",
-    "ssh_username": "ubuntu",
-    "ssh_key_path": os.environ.get("BALOCHISTAN_SSH_KEY", ""),
-
-    # RDS settings (accessed via tunnel)
-    "db_host": "terraform-2024112712521102930000000c.cl66yoig6i08.ap-southeast-1.rds.amazonaws.com",
-    "db_port": 5432,
-    "db_name": "tbniete_balochistan_db",
-    "db_user": "niete_balochistan_ecs",
-    "db_password": os.environ.get("BALOCHISTAN_DB_PASSWORD", "7xV8L9qxKLXdhZ84764erjhrf8"),
-
-    # Local tunnel port
-    "local_port": 5420
+    "host": os.environ.get("NEON_BALOCHISTAN_HOST", "ep-divine-mode-ahm03w5x.c-3.us-east-1.aws.neon.tech"),
+    "port": int(os.environ.get("NEON_BALOCHISTAN_PORT", 5432)),
+    "database": os.environ.get("NEON_BALOCHISTAN_DB", "neondb"),
+    "user": os.environ.get("NEON_BALOCHISTAN_USER", "neondb_owner"),
+    "password": os.environ.get("NEON_BALOCHISTAN_PASSWORD", "npg_RQHvjt6MOXe3")
 }
-
-# Global tunnel reference
-_balochistan_tunnel = None
 
 
 def get_balochistan_connection():
     """
-    Get connection to Balochistan database via SSH tunnel.
+    Get connection to Balochistan Neon database.
 
     Returns:
         psycopg2 connection object or None if unavailable
     """
-    global _balochistan_tunnel
-
     if not PSYCOPG2_AVAILABLE:
         print("psycopg2 not available")
         return None
 
     try:
-        # Try direct connection first (if tunnel already established externally)
-        try:
-            conn = psycopg2.connect(
-                host="localhost",
-                port=BALOCHISTAN_CONFIG["local_port"],
-                database=BALOCHISTAN_CONFIG["db_name"],
-                user=BALOCHISTAN_CONFIG["db_user"],
-                password=BALOCHISTAN_CONFIG["db_password"],
-                connect_timeout=5
-            )
-            return conn
-        except:
-            pass
-
-        # Try direct RDS connection (if accessible)
-        try:
-            conn = psycopg2.connect(
-                host=BALOCHISTAN_CONFIG["db_host"],
-                port=BALOCHISTAN_CONFIG["db_port"],
-                database=BALOCHISTAN_CONFIG["db_name"],
-                user=BALOCHISTAN_CONFIG["db_user"],
-                password=BALOCHISTAN_CONFIG["db_password"],
-                connect_timeout=10
-            )
-            return conn
-        except Exception as e:
-            print(f"Direct RDS connection failed: {e}")
-
-        # SSH tunnel would be needed - skip for Replit deployment
-        # Users can establish tunnel manually: ssh -L 5420:rds-host:5432 ubuntu@52.76.227.229
-        return None
-
+        conn = psycopg2.connect(
+            host=BALOCHISTAN_CONFIG["host"],
+            port=BALOCHISTAN_CONFIG["port"],
+            database=BALOCHISTAN_CONFIG["database"],
+            user=BALOCHISTAN_CONFIG["user"],
+            password=BALOCHISTAN_CONFIG["password"],
+            sslmode="require",
+            connect_timeout=10
+        )
+        return conn
     except Exception as e:
         print(f"Balochistan connection error: {e}")
         return None
@@ -227,7 +193,7 @@ def query_moawin_direct(sql: str) -> list:
         "port": 5432,
         "database": "neondb",
         "user": "analyst_readonly_schoolpilot",
-        "password": os.environ.get("SCHOOLPILOT_DB_PASSWORD", "")
+        "password": os.environ.get("SCHOOLPILOT_DB_PASSWORD", "readonly_schoolpilot_2026")
     }
 
     try:

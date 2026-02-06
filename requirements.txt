@@ -1,17 +1,20 @@
 # Taleemabad Observability Dashboard
-# For Replit deployment
+# For Railway deployment
 
-# Core
-streamlit>=1.29.0
+# Core Framework
+streamlit>=1.32.0
 
-# Data visualization
+# Data Visualization
 plotly>=5.18.0
 pandas>=2.0.0
+numpy>=1.24.0
 
-# Database connections
-psycopg2-binary>=2.9.0
-sshtunnel>=0.4.0
+# Database Connections
+psycopg2-binary>=2.9.9
+
+# Google Cloud (BigQuery)
 google-cloud-bigquery>=3.0.0
+google-auth>=2.0.0
 
 # Utilities
 python-dotenv>=1.0.0

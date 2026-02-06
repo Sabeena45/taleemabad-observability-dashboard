@@ -1,7 +1,8 @@
 """
-FICO Deep Dive - Detailed analysis by FICO section.
+FICO Deep Dive - Detailed analysis by FICO section (A-F).
 
 Design: Minimalist, insight-first approach following Tufte principles.
+Uses centralized design system for consistent styling.
 """
 import streamlit as st
 import plotly.graph_objects as go
@@ -17,6 +18,20 @@ from data.queries import (
     get_fico_section_d_metrics,
     get_recent_sessions
 )
+from styles.design_system import (
+    inject_css,
+    hero_metric,
+    status_bar,
+    divider,
+    section_title,
+    insight_card,
+    metric_card,
+    rec_card,
+    COLORS,
+    FICO_COLORS,
+    plotly_layout_defaults,
+    score_color
+)
 
 st.set_page_config(
     page_title="FICO Analysis | Taleemabad",
@@ -25,218 +40,47 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# === DESIGN SYSTEM CSS (consistent with app.py) ===
-st.markdown("""
-<style>
-    /* === RESET & BASE === */
-    .stApp { background: #FAFAFA; }
-    #MainMenu, footer, header { visibility: hidden; }
-
-    html, body, [class*="css"] {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        max-width: 1200px;
-    }
-
-    /* === STATUS BAR === */
-    .status-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #E5E7EB;
-        margin-bottom: 1.5rem;
-    }
-    .status-region { font-weight: 600; color: #1A1A1A; }
-    .status-live {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.75rem;
-        color: #10B981;
-    }
-    .status-dot {
-        width: 6px;
-        height: 6px;
-        background: #10B981;
-        border-radius: 50%;
-    }
-
-    /* === SECTION TITLE === */
-    .section-title {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #9CA3AF;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        margin-bottom: 1rem;
-    }
-
-    /* === HERO METRIC === */
-    .hero-metric {
-        text-align: center;
-        padding: 2rem 0;
-    }
-    .hero-value {
-        font-size: 4rem;
-        font-weight: 700;
-        line-height: 1;
-        letter-spacing: -0.02em;
-    }
-    .hero-label {
-        font-size: 1rem;
-        color: #6B7280;
-        margin-top: 0.5rem;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-    }
-    .hero-context {
-        font-size: 0.875rem;
-        color: #9CA3AF;
-        margin-top: 0.25rem;
-    }
-
-    /* === INSIGHT CARDS === */
-    .insight-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-    .insight-highlight {
-        font-size: 1.125rem;
-        color: #1A1A1A;
-        line-height: 1.6;
-    }
-    .insight-highlight strong {
-        color: #EF4444;
-    }
-
-    /* === METRIC CARDS === */
-    .metric-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.25rem 1.5rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        text-align: center;
-    }
-    .metric-card-value {
-        font-size: 2rem;
-        font-weight: 600;
-        color: #1A1A1A;
-    }
-    .metric-card-label {
-        font-size: 0.75rem;
-        color: #6B7280;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-top: 0.25rem;
-    }
-
-    /* === CLEAN DIVIDER === */
-    .clean-divider {
-        height: 1px;
-        background: #E5E7EB;
-        margin: 2rem 0;
-    }
-
-    /* === STREAMLIT OVERRIDES === */
-    .stMetric {
-        background: white;
-        padding: 1rem;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-    .stMetric label {
-        color: #6B7280 !important;
-        font-size: 0.75rem !important;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .stMetric [data-testid="stMetricValue"] {
-        font-size: 1.75rem !important;
-        font-weight: 600 !important;
-    }
-
-    /* Pills/Radio styling */
-    .stRadio > div {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-    .stRadio label {
-        background: white;
-        border: 1px solid #E5E7EB;
-        border-radius: 20px;
-        padding: 0.5rem 1rem;
-        font-size: 0.875rem;
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-    .stRadio label:hover {
-        border-color: #3B82F6;
-    }
-    .stRadio [data-baseweb="radio"] {
-        display: none;
-    }
-
-    /* Plotly backgrounds */
-    .js-plotly-plot .plotly .main-svg {
-        background: transparent !important;
-    }
-
-    /* Recommendation card */
-    .rec-card {
-        background: #F9FAFB;
-        border-radius: 8px;
-        padding: 1rem;
-        margin: 0.5rem 0;
-        border-left: 3px solid #3B82F6;
-    }
-    .rec-card strong {
-        color: #1A1A1A;
-    }
-</style>
-""", unsafe_allow_html=True)
+# === INJECT DESIGN SYSTEM ===
+inject_css()
 
 
 def main():
     filters = render_sidebar()
 
     # === STATUS BAR ===
-    st.markdown(f'''
-    <div class="status-bar">
-        <span class="status-region">◉ {filters["region"]} · FICO Analysis</span>
-        <span class="status-live">
-            <span class="status-dot"></span>
-            Live
-        </span>
-    </div>
-    ''', unsafe_allow_html=True)
+    st.markdown(status_bar(filters["region"], "FICO Analysis"), unsafe_allow_html=True)
 
-    # === SECTION SELECTOR (as pills) ===
+    # === SECTION SELECTOR (Apple segmented control via design system) ===
     section = st.radio(
         "Focus Area",
         options=[
             "Overview",
-            "C: Understanding Check",
-            "D: Student Participation"
+            "A: Lesson Opening",
+            "B: Explanation",
+            "C: Understanding",
+            "D: Participation",
+            "E: Feedback",
+            "F: Closing"
         ],
         horizontal=True,
         label_visibility="collapsed"
     )
 
+    # Route to appropriate section
     if section == "Overview":
         render_overview(filters)
-    elif section == "C: Understanding Check":
+    elif section == "A: Lesson Opening":
+        render_section_a(filters)
+    elif section == "B: Explanation":
+        render_section_b(filters)
+    elif section == "C: Understanding":
         render_section_c_detail(filters)
-    elif section == "D: Student Participation":
+    elif section == "D: Participation":
         render_section_d_detail(filters)
+    elif section == "E: Feedback":
+        render_section_e(filters)
+    elif section == "F: Closing":
+        render_section_f(filters)
 
 
 def render_overview(filters):
@@ -254,20 +98,22 @@ def render_overview(filters):
     biggest_gap = gaps[max_gap_idx]
 
     # === HERO: Biggest Gap ===
-    st.markdown(f'''
-    <div class="hero-metric">
-        <div class="hero-value" style="color: #EF4444;">{biggest_gap}</div>
-        <div class="hero-label">Points Below Target</div>
-        <div class="hero-context">{biggest_gap_dimension} is our biggest opportunity</div>
-    </div>
-    ''', unsafe_allow_html=True)
+    st.markdown(
+        hero_metric(
+            str(biggest_gap),
+            "Points Below Target",
+            f"{biggest_gap_dimension} is our biggest opportunity",
+            color=COLORS['error']
+        ),
+        unsafe_allow_html=True
+    )
 
-    st.markdown('<div class="clean-divider"></div>', unsafe_allow_html=True)
+    st.markdown(divider(), unsafe_allow_html=True)
 
     # === HORIZONTAL BAR CHART ===
-    st.markdown('<div class="section-title">All Dimensions</div>', unsafe_allow_html=True)
+    st.markdown(section_title("All Dimensions"), unsafe_allow_html=True)
 
-    colors = ['#10B981' if s >= t else '#EF4444' for s, t in zip(scores, targets)]
+    colors = [COLORS['success'] if s >= t else COLORS['error'] for s, t in zip(scores, targets)]
 
     fig = go.Figure()
 
@@ -277,9 +123,10 @@ def render_overview(filters):
         x=scores,
         orientation='h',
         marker_color=colors,
+        marker_line_width=0,
         text=[f'{s}%' for s in scores],
         textposition='outside',
-        textfont=dict(size=12, color='#374151'),
+        textfont=dict(size=11, color='#6B7280', family="Inter, -apple-system, sans-serif"),
         hovertemplate='%{y}: %{x}%<extra></extra>'
     ))
 
@@ -293,20 +140,20 @@ def render_overview(filters):
         hovertemplate='Target: %{x}%<extra></extra>'
     ))
 
+    base_layout = plotly_layout_defaults(height=340)
     fig.update_layout(
+        **base_layout,
         showlegend=False,
         margin=dict(t=10, b=40, l=150, r=60),
-        height=340,
         xaxis=dict(
             range=[0, 100],
             showgrid=True,
             gridcolor='#F3F4F6',
             zeroline=False,
-            ticksuffix='%'
+            ticksuffix='%',
+            tickfont=dict(size=11, color='#6B7280')
         ),
-        yaxis=dict(showgrid=False, autorange='reversed'),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
+        yaxis=dict(showgrid=False, autorange='reversed', tickfont=dict(size=12, color='#374151'))
     )
 
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
@@ -314,36 +161,155 @@ def render_overview(filters):
     # Legend
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown('<span style="color: #10B981;">●</span> Meeting target', unsafe_allow_html=True)
+        st.markdown(f'<span style="color: {COLORS["success"]};">●</span> Meeting target', unsafe_allow_html=True)
     with col2:
-        st.markdown('<span style="color: #EF4444;">●</span> Below target', unsafe_allow_html=True)
+        st.markdown(f'<span style="color: {COLORS["error"]};">●</span> Below target', unsafe_allow_html=True)
     with col3:
         st.markdown('<span style="color: #9CA3AF;">|</span> Target', unsafe_allow_html=True)
 
-    st.markdown('<div class="clean-divider"></div>', unsafe_allow_html=True)
+    st.markdown(divider(), unsafe_allow_html=True)
 
     # === KEY INSIGHTS ===
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown('''
-        <div class="insight-card" style="border-left: 3px solid #10B981;">
-            <div style="font-size: 0.75rem; color: #10B981; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Strengths</div>
-            <div class="insight-highlight">
-                <strong style="color: #10B981;">Lesson Opening (72%)</strong> and <strong style="color: #10B981;">Feedback (71%)</strong> are closest to targets.
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
+        st.markdown(
+            insight_card(
+                f'<strong style="color: {COLORS["success"]};">Lesson Opening (72%)</strong> and '
+                f'<strong style="color: {COLORS["success"]};">Feedback (71%)</strong> are closest to targets.',
+                border_color=COLORS['success'],
+                title="Strengths"
+            ),
+            unsafe_allow_html=True
+        )
 
     with col2:
-        st.markdown('''
-        <div class="insight-card" style="border-left: 3px solid #EF4444;">
-            <div style="font-size: 0.75rem; color: #EF4444; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Focus Areas</div>
-            <div class="insight-highlight">
-                <strong>Participation (45%)</strong> and <strong>Understanding (58%)</strong> need immediate attention.
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
+        st.markdown(
+            insight_card(
+                '<strong>Participation (45%)</strong> and <strong>Understanding (58%)</strong> need immediate attention.',
+                border_color=COLORS['error'],
+                title="Focus Areas"
+            ),
+            unsafe_allow_html=True
+        )
+
+
+def render_section_a(filters):
+    """Section A: Lesson Opening - How teachers begin class."""
+
+    score = 72
+    target = 75
+    gap = target - score
+
+    # === HERO ===
+    st.markdown(
+        hero_metric(
+            f"{score}%",
+            "Lesson Opening Score",
+            f"Target: {target}% · Gap: {gap} points",
+            color=score_color(score, target)
+        ),
+        unsafe_allow_html=True
+    )
+
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === KEY BEHAVIORS ===
+    st.markdown(section_title("Key Behaviors Observed"), unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(metric_card("68%", "Recaps Prior Learning", COLORS['warning']), unsafe_allow_html=True)
+    with col2:
+        st.markdown(metric_card("74%", "States Objectives", COLORS['success']), unsafe_allow_html=True)
+    with col3:
+        st.markdown(metric_card("71%", "Hooks Attention", COLORS['success']), unsafe_allow_html=True)
+
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === INSIGHT ===
+    st.markdown(
+        insight_card(
+            'Teachers who <strong>recap prior learning</strong> before introducing new content '
+            'see <strong>23% higher</strong> student engagement throughout the lesson.',
+            border_color=FICO_COLORS['A']
+        ),
+        unsafe_allow_html=True
+    )
+
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === RECOMMENDATIONS ===
+    st.markdown(section_title("Recommendations"), unsafe_allow_html=True)
+
+    recs = [
+        ("Start with a question", "Connect to yesterday's lesson with one review question"),
+        ("State the goal clearly", "Write the learning objective on the board"),
+        ("Use a hook", "Start with a story, question, or surprising fact"),
+        ("Set expectations", "Briefly outline what students will do today")
+    ]
+
+    for title, desc in recs:
+        st.markdown(rec_card(title, desc, FICO_COLORS['A']), unsafe_allow_html=True)
+
+
+def render_section_b(filters):
+    """Section B: Explanation - Clarity of instruction."""
+
+    score = 68
+    target = 75
+    gap = target - score
+
+    # === HERO ===
+    st.markdown(
+        hero_metric(
+            f"{score}%",
+            "Explanation Quality",
+            f"Target: {target}% · Gap: {gap} points",
+            color=score_color(score, target)
+        ),
+        unsafe_allow_html=True
+    )
+
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === KEY BEHAVIORS ===
+    st.markdown(section_title("Key Behaviors Observed"), unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(metric_card("72%", "Clear Language", COLORS['success']), unsafe_allow_html=True)
+    with col2:
+        st.markdown(metric_card("61%", "Uses Examples", COLORS['warning']), unsafe_allow_html=True)
+    with col3:
+        st.markdown(metric_card("65%", "Checks Pace", COLORS['warning']), unsafe_allow_html=True)
+
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === INSIGHT ===
+    st.markdown(
+        insight_card(
+            'Only <strong>61%</strong> of teachers use concrete examples. '
+            'Research shows examples increase comprehension by <strong>40%</strong>.',
+            border_color=FICO_COLORS['B']
+        ),
+        unsafe_allow_html=True
+    )
+
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === RECOMMENDATIONS ===
+    st.markdown(section_title("Recommendations"), unsafe_allow_html=True)
+
+    recs = [
+        ("Use 3 examples", "Give at least 3 varied examples per new concept"),
+        ("Check pace", "Watch for confused faces, ask 'Should I slow down?'"),
+        ("Chunk content", "Break complex topics into 5-minute segments"),
+        ("Model thinking", "Show your thought process, not just answers")
+    ]
+
+    for title, desc in recs:
+        st.markdown(rec_card(title, desc, FICO_COLORS['B']), unsafe_allow_html=True)
 
 
 def render_section_c_detail(filters):
@@ -351,43 +317,40 @@ def render_section_c_detail(filters):
 
     metrics = get_fico_section_c_metrics(filters)
     open_ratio = metrics['open_question_ratio']
+    target = 40
 
-    # === HERO: Open Question Ratio ===
-    hero_color = "#10B981" if open_ratio >= 40 else "#EF4444" if open_ratio < 25 else "#F59E0B"
+    # === HERO ===
+    st.markdown(
+        hero_metric(
+            f"{open_ratio:.0f}%",
+            "Open-Ended Questions",
+            f"Target: {target}% · Gap: {target - open_ratio:.0f} percentage points",
+            color=score_color(open_ratio, target)
+        ),
+        unsafe_allow_html=True
+    )
 
-    st.markdown(f'''
-    <div class="hero-metric">
-        <div class="hero-value" style="color: {hero_color};">{open_ratio:.0f}%</div>
-        <div class="hero-label">Open-Ended Questions</div>
-        <div class="hero-context">Target: 40% · Gap: {40 - open_ratio:.0f} percentage points</div>
-    </div>
-    ''', unsafe_allow_html=True)
-
-    st.markdown('<div class="clean-divider"></div>', unsafe_allow_html=True)
+    st.markdown(divider(), unsafe_allow_html=True)
 
     # === KEY METRICS ===
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown(f'''
-        <div class="metric-card">
-            <div class="metric-card-value" style="color: #10B981;">{metrics["avg_open_questions"]:.1f}</div>
-            <div class="metric-card-label">Open Questions / Session</div>
-        </div>
-        ''', unsafe_allow_html=True)
+        st.markdown(
+            metric_card(f'{metrics["avg_open_questions"]:.1f}', "Open Questions / Session", COLORS['success']),
+            unsafe_allow_html=True
+        )
 
     with col2:
-        st.markdown(f'''
-        <div class="metric-card">
-            <div class="metric-card-value" style="color: #6B7280;">{metrics["avg_closed_questions"]:.1f}</div>
-            <div class="metric-card-label">Closed Questions / Session</div>
-        </div>
-        ''', unsafe_allow_html=True)
+        st.markdown(
+            metric_card(f'{metrics["avg_closed_questions"]:.1f}', "Closed Questions / Session", COLORS['muted']),
+            unsafe_allow_html=True
+        )
 
-    st.markdown('<div class="clean-divider"></div>', unsafe_allow_html=True)
+    st.markdown(divider(), unsafe_allow_html=True)
 
     # === QUESTION DISTRIBUTION CHART ===
-    st.markdown('<div class="section-title">Recent Sessions</div>', unsafe_allow_html=True)
+    st.markdown(section_title("Recent Sessions"), unsafe_allow_html=True)
 
     sessions = get_recent_sessions(filters, limit=12)
     if sessions:
@@ -401,7 +364,7 @@ def render_section_c_detail(filters):
             name='Open',
             x=session_labels,
             y=open_qs,
-            marker_color='#10B981'
+            marker_color=COLORS['success']
         ))
         fig.add_trace(go.Bar(
             name='Closed',
@@ -410,30 +373,28 @@ def render_section_c_detail(filters):
             marker_color='#E5E7EB'
         ))
 
+        base_layout = plotly_layout_defaults(height=240)
         fig.update_layout(
+            **base_layout,
             barmode='stack',
-            margin=dict(t=20, b=40, l=40, r=20),
-            height=240,
             legend=dict(
                 orientation='h',
                 yanchor='bottom',
                 y=1.02,
                 xanchor='right',
                 x=1,
-                font=dict(size=11)
+                font=dict(size=11, family="Inter, -apple-system, sans-serif")
             ),
             xaxis=dict(showgrid=False),
-            yaxis=dict(showgrid=True, gridcolor='#F3F4F6', zeroline=False, title=None),
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
+            yaxis=dict(showgrid=True, gridcolor='#F3F4F6', zeroline=False, title=None)
         )
 
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
-    st.markdown('<div class="clean-divider"></div>', unsafe_allow_html=True)
+    st.markdown(divider(), unsafe_allow_html=True)
 
     # === RECOMMENDATIONS ===
-    st.markdown('<div class="section-title">Recommendations</div>', unsafe_allow_html=True)
+    st.markdown(section_title("Recommendations"), unsafe_allow_html=True)
 
     recommendations = [
         ("Use Why and How", "These question starters encourage deeper thinking"),
@@ -443,12 +404,7 @@ def render_section_c_detail(filters):
     ]
 
     for title, desc in recommendations:
-        st.markdown(f'''
-        <div class="rec-card">
-            <strong>{title}</strong><br>
-            <span style="color: #6B7280; font-size: 0.875rem;">{desc}</span>
-        </div>
-        ''', unsafe_allow_html=True)
+        st.markdown(rec_card(title, desc, FICO_COLORS['C']), unsafe_allow_html=True)
 
 
 def render_section_d_detail(filters):
@@ -459,18 +415,18 @@ def render_section_d_detail(filters):
     teacher_talk = metrics['teacher_talk_time']
     target = metrics['target_student_time']
 
-    # === HERO: Student Talk Time ===
-    hero_color = "#10B981" if student_talk >= target else "#EF4444" if student_talk < 20 else "#F59E0B"
+    # === HERO ===
+    st.markdown(
+        hero_metric(
+            f"{student_talk}%",
+            "Student Talk Time",
+            f"Target: {target}% · Currently {target - student_talk} points below",
+            color=score_color(student_talk, target)
+        ),
+        unsafe_allow_html=True
+    )
 
-    st.markdown(f'''
-    <div class="hero-metric">
-        <div class="hero-value" style="color: {hero_color};">{student_talk}%</div>
-        <div class="hero-label">Student Talk Time</div>
-        <div class="hero-context">Target: {target}% · Currently {target - student_talk} points below</div>
-    </div>
-    ''', unsafe_allow_html=True)
-
-    st.markdown('<div class="clean-divider"></div>', unsafe_allow_html=True)
+    st.markdown(divider(), unsafe_allow_html=True)
 
     # === TALK TIME DISTRIBUTION ===
     col1, col2 = st.columns([1, 1])
@@ -480,13 +436,15 @@ def render_section_d_detail(filters):
         fig = go.Figure(data=[go.Pie(
             values=[student_talk, teacher_talk],
             labels=['Student', 'Teacher'],
-            hole=0.7,
-            marker_colors=['#10B981', '#6B7280'],
+            hole=0.75,
+            marker_colors=[COLORS['success'], COLORS['muted']],
             textinfo='none',
             hovertemplate='%{label}: %{value}%<extra></extra>'
         )])
 
+        base_layout = plotly_layout_defaults(height=220)
         fig.update_layout(
+            **base_layout,
             showlegend=True,
             legend=dict(
                 orientation='h',
@@ -494,16 +452,16 @@ def render_section_d_detail(filters):
                 y=-0.1,
                 xanchor='center',
                 x=0.5,
-                font=dict(size=12)
+                font=dict(size=12, family="Inter, -apple-system, sans-serif")
             ),
             margin=dict(t=10, b=40, l=10, r=10),
-            height=220,
             annotations=[dict(
                 text=f'{student_talk}%',
                 x=0.5, y=0.5,
                 font_size=32,
                 font_weight=600,
-                font_color='#10B981',
+                font_color=COLORS['success'],
+                font_family="Inter, -apple-system, sans-serif",
                 showarrow=False
             )]
         )
@@ -511,21 +469,20 @@ def render_section_d_detail(filters):
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
     with col2:
-        st.markdown(f'''
-        <div class="insight-card" style="border-left: 3px solid #EF4444; height: 180px;">
-            <div style="font-size: 0.75rem; color: #EF4444; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Critical Finding</div>
-            <div class="insight-highlight">
-                Students learn best when actively speaking at least <strong style="color: #10B981;">40%</strong> of class time.
-                <br><br>
-                Current: Teachers dominate at <strong>{teacher_talk}%</strong>.
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
+        st.markdown(
+            insight_card(
+                f'Students learn best when actively speaking at least <strong style="color: {COLORS["success"]};">40%</strong> of class time.'
+                f'<br><br>Current: Teachers dominate at <strong>{teacher_talk}%</strong>.',
+                border_color=COLORS['error'],
+                title="Critical Finding"
+            ),
+            unsafe_allow_html=True
+        )
 
-    st.markdown('<div class="clean-divider"></div>', unsafe_allow_html=True)
+    st.markdown(divider(), unsafe_allow_html=True)
 
     # === RECOMMENDATIONS ===
-    st.markdown('<div class="section-title">Action Items</div>', unsafe_allow_html=True)
+    st.markdown(section_title("Action Items"), unsafe_allow_html=True)
 
     actions = [
         ("Think-Pair-Share", "Students discuss with partner before whole-class sharing"),
@@ -536,12 +493,125 @@ def render_section_d_detail(filters):
     ]
 
     for title, desc in actions:
-        st.markdown(f'''
-        <div class="rec-card">
-            <strong>{title}</strong><br>
-            <span style="color: #6B7280; font-size: 0.875rem;">{desc}</span>
-        </div>
-        ''', unsafe_allow_html=True)
+        st.markdown(rec_card(title, desc, FICO_COLORS['D']), unsafe_allow_html=True)
+
+
+def render_section_e(filters):
+    """Section E: Feedback - Quality of teacher feedback to students."""
+
+    score = 71
+    target = 70
+    gap = target - score
+
+    # === HERO ===
+    st.markdown(
+        hero_metric(
+            f"{score}%",
+            "Feedback Quality",
+            f"Target: {target}% · {abs(gap)} points {'above' if gap <= 0 else 'below'}",
+            color=score_color(score, target)
+        ),
+        unsafe_allow_html=True
+    )
+
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === KEY BEHAVIORS ===
+    st.markdown(section_title("Key Behaviors Observed"), unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(metric_card("73%", "Specific Praise", COLORS['success']), unsafe_allow_html=True)
+    with col2:
+        st.markdown(metric_card("68%", "Corrective Feedback", COLORS['warning']), unsafe_allow_html=True)
+    with col3:
+        st.markdown(metric_card("70%", "Timely Response", COLORS['success']), unsafe_allow_html=True)
+
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === INSIGHT ===
+    st.markdown(
+        insight_card(
+            'Teachers give <strong>specific praise</strong> (73%) but struggle with '
+            '<strong>corrective feedback</strong> (68%). Students need both to improve.',
+            border_color=FICO_COLORS['E']
+        ),
+        unsafe_allow_html=True
+    )
+
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === RECOMMENDATIONS ===
+    st.markdown(section_title("Recommendations"), unsafe_allow_html=True)
+
+    recs = [
+        ("Be specific", "Say 'Great use of evidence!' not just 'Good job'"),
+        ("Focus on growth", "Highlight improvement, not just correctness"),
+        ("Immediate response", "Give feedback within seconds, not days"),
+        ("Balance praise/correction", "Aim for 4:1 positive to corrective ratio")
+    ]
+
+    for title, desc in recs:
+        st.markdown(rec_card(title, desc, FICO_COLORS['E']), unsafe_allow_html=True)
+
+
+def render_section_f(filters):
+    """Section F: Closing - How teachers end the lesson."""
+
+    score = 65
+    target = 70
+    gap = target - score
+
+    # === HERO ===
+    st.markdown(
+        hero_metric(
+            f"{score}%",
+            "Lesson Closing Score",
+            f"Target: {target}% · Gap: {gap} points",
+            color=score_color(score, target)
+        ),
+        unsafe_allow_html=True
+    )
+
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === KEY BEHAVIORS ===
+    st.markdown(section_title("Key Behaviors Observed"), unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(metric_card("62%", "Summarizes Key Points", COLORS['warning']), unsafe_allow_html=True)
+    with col2:
+        st.markdown(metric_card("58%", "Checks Understanding", COLORS['error']), unsafe_allow_html=True)
+    with col3:
+        st.markdown(metric_card("71%", "Previews Next Lesson", COLORS['success']), unsafe_allow_html=True)
+
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === INSIGHT ===
+    st.markdown(
+        insight_card(
+            'Only <strong>58%</strong> check understanding at lesson end. '
+            'Exit tickets can increase retention by <strong>35%</strong>.',
+            border_color=FICO_COLORS['F']
+        ),
+        unsafe_allow_html=True
+    )
+
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === RECOMMENDATIONS ===
+    st.markdown(section_title("Recommendations"), unsafe_allow_html=True)
+
+    recs = [
+        ("3-2-1 Summary", "Students share 3 things learned, 2 questions, 1 connection"),
+        ("Exit Ticket", "Quick written response to check understanding"),
+        ("Preview tomorrow", "Create anticipation for next lesson"),
+        ("Student summary", "Have a student summarize the key points")
+    ]
+
+    for title, desc in recs:
+        st.markdown(rec_card(title, desc, FICO_COLORS['F']), unsafe_allow_html=True)
 
 
 if __name__ == "__main__":

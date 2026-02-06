@@ -1,8 +1,16 @@
 """
 Summary cards component showing key metrics.
+Uses centralized design system for consistent styling.
 """
 import streamlit as st
+from pathlib import Path
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from data.queries import get_summary_metrics
+from styles.design_system import metric_card, COLORS
 
 
 def render_summary_cards(filters: dict):
@@ -20,88 +28,40 @@ def render_summary_cards(filters: dict):
 
     cards = [
         {
-            "icon": "🏫",
             "label": "Schools",
-            "value": metrics.get("schools", 236),
-            "delta": None,
-            "help": "Total active schools in SchoolPilot"
+            "value": str(metrics.get("schools", 236)),
+            "color": None
         },
         {
-            "icon": "👩‍🏫",
             "label": "Teachers",
-            "value": metrics.get("teachers", 599),
-            "delta": None,
-            "help": "Total registered teachers"
+            "value": str(metrics.get("teachers", 599)),
+            "color": None
         },
         {
-            "icon": "🤖",
             "label": "AI Sessions",
-            "value": metrics.get("ai_sessions", 128),
-            "delta": "+12",
-            "help": "Rumi coaching sessions completed"
+            "value": str(metrics.get("ai_sessions", 128)),
+            "color": COLORS['info']
         },
         {
-            "icon": "👁️",
             "label": "Human Obs",
-            "value": metrics.get("human_observations", 576),
-            "delta": "+8",
-            "help": "Human coach observations"
+            "value": str(metrics.get("human_observations", 576)),
+            "color": COLORS['success']
         },
         {
-            "icon": "📊",
             "label": "Avg Score",
             "value": f"{metrics.get('avg_score', 72.3)}%",
-            "delta": "+2.1%",
-            "help": "Average teaching quality score"
+            "color": COLORS['success']
         },
         {
-            "icon": "👨‍🎓",
             "label": "Students",
             "value": f"{metrics.get('students', 16898):,}",
-            "delta": None,
-            "help": "Total students in SchoolPilot"
+            "color": None
         }
     ]
 
     for col, card in zip(cols, cards):
         with col:
-            render_card(
-                icon=card["icon"],
-                label=card["label"],
-                value=card["value"],
-                delta=card.get("delta"),
-                help_text=card.get("help")
+            st.markdown(
+                metric_card(card["value"], card["label"], card.get("color")),
+                unsafe_allow_html=True
             )
-
-
-def render_card(icon: str, label: str, value, delta: str = None, help_text: str = None):
-    """
-    Render a single metric card.
-
-    Args:
-        icon: Emoji icon
-        label: Metric label
-        value: Metric value
-        delta: Change indicator (optional)
-        help_text: Hover help text (optional)
-    """
-    delta_html = ""
-    if delta:
-        color = "#10B981" if delta.startswith("+") else "#EF4444"
-        delta_html = f'<span style="color: {color}; font-size: 0.875rem; margin-left: 8px;">{delta}</span>'
-
-    st.markdown(f"""
-    <div class="metric-card">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-            <span style="font-size: 1.5rem;">{icon}</span>
-            <span class="metric-label">{label}</span>
-        </div>
-        <div>
-            <span class="metric-value">{value}</span>
-            {delta_html}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Add spacing
-    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)

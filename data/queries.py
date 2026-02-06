@@ -8,6 +8,9 @@ from typing import Dict, Any, List
 from . import balochistan_queries
 from . import moawin_queries
 from . import islamabad_queries
+from . import rumi_queries
+from . import rawalpindi_queries
+from . import unified_queries
 
 
 # ============================================================================
@@ -37,31 +40,26 @@ def get_summary_metrics(filters: Dict[str, Any]) -> Dict[str, Any]:
     elif region == "Islamabad":
         return islamabad_queries.get_summary_metrics(time_period)
 
-    elif region == "Rawalpindi" or "Coming Soon" in str(region):
-        # Rawalpindi not yet available
-        return {
-            "schools": 0,
-            "teachers": 0,
-            "ai_sessions": 0,
-            "human_observations": 0,
-            "avg_score": 0,
-            "students": 0,
-            "note": "Rawalpindi data coming soon"
-        }
+    elif region == "Rawalpindi":
+        return rawalpindi_queries.get_summary_metrics(time_period)
 
     elif region == "Combined":
-        # Combine all available regions
+        # Use BigQuery unified views for cross-program totals + external DBs
+        bq_summary = unified_queries.get_combined_summary()
         bal = balochistan_queries.get_summary_metrics(obs_type)
         mow = moawin_queries.get_summary_metrics(time_period)
-        isl = islamabad_queries.get_summary_metrics(time_period)
+        rumi = rumi_queries.get_summary_metrics(time_period)
 
+        # BigQuery covers schools/teachers/students across ICT+BL+RWP
+        # Add Moawin (SchoolPilot) schools/teachers on top
+        # Add Rumi AI sessions
         return {
-            "schools": bal["schools"] + mow["schools"] + isl["schools"],
-            "teachers": bal["teachers"] + mow["teachers"] + isl["teachers"],
-            "ai_sessions": bal["ai_sessions"],  # Only Balochistan has AI
-            "human_observations": bal["human_observations"] + isl["human_observations"],
-            "avg_score": round((bal["avg_score"] + mow["avg_score"] + isl["avg_score"]) / 3, 1),
-            "students": bal["students"] + mow["students"] + isl["students"]
+            "schools": bq_summary["schools"] + mow["schools"],
+            "teachers": bq_summary["teachers"] + mow["teachers"],
+            "ai_sessions": bal["ai_sessions"] + rumi["ai_sessions"],
+            "human_observations": bal["human_observations"] + mow.get("human_observations", 0),
+            "avg_score": bal["avg_score"] if bal["avg_score"] else 0,
+            "students": bq_summary["students"] + mow["students"]
         }
 
     return {}
@@ -89,6 +87,9 @@ def get_fico_section_c_metrics(filters: Dict[str, Any]) -> Dict[str, Any]:
 
     elif region == "Islamabad":
         return islamabad_queries.get_question_metrics(obs_type)
+
+    elif region == "Rawalpindi":
+        return rawalpindi_queries.get_question_metrics(obs_type)
 
     elif region == "Combined":
         # Only Balochistan has question data
@@ -122,6 +123,9 @@ def get_fico_section_d_metrics(filters: Dict[str, Any]) -> Dict[str, Any]:
     elif region == "Islamabad":
         return islamabad_queries.get_talk_time_metrics(obs_type)
 
+    elif region == "Rawalpindi":
+        return rawalpindi_queries.get_talk_time_metrics(obs_type)
+
     elif region == "Combined":
         # Only Balochistan has talk time data
         return balochistan_queries.get_talk_time_metrics(obs_type)
@@ -149,6 +153,9 @@ def get_fico_scores(filters: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 
     elif region == "Islamabad":
         return islamabad_queries.get_fico_scores()
+
+    elif region == "Rawalpindi":
+        return rawalpindi_queries.get_fico_scores()
 
     elif region == "Combined":
         # Prefer Balochistan as it has more detailed FICO data
@@ -185,14 +192,18 @@ def get_observation_counts(filters: Dict[str, Any]) -> Dict[str, Any]:
     elif region == "Islamabad":
         return islamabad_queries.get_observation_counts(obs_type)
 
+    elif region == "Rawalpindi":
+        return rawalpindi_queries.get_observation_counts(obs_type)
+
     elif region == "Combined":
         bal = balochistan_queries.get_observation_counts(obs_type)
         isl = islamabad_queries.get_observation_counts(obs_type)
+        rumi = rumi_queries.get_observation_counts(obs_type)
 
         return {
-            "ai_count": bal["ai_count"] + isl.get("ai_count", 0),
+            "ai_count": bal["ai_count"] + isl.get("ai_count", 0) + rumi["ai_count"],
             "human_count": bal["human_count"] + isl.get("human_count", 0),
-            "total": bal["total"] + isl.get("total", 0)
+            "total": bal["total"] + isl.get("total", 0) + rumi["total"]
         }
 
     return {"ai_count": 0, "human_count": 0, "total": 0}
@@ -216,6 +227,9 @@ def get_observation_trend(filters: Dict[str, Any], weeks: int = 8) -> List[Dict[
 
     elif region == "Islamabad":
         return islamabad_queries.get_observation_trend(weeks)
+
+    elif region == "Rawalpindi":
+        return rawalpindi_queries.get_observation_trend(weeks)
 
     elif region == "Combined":
         # Use Balochistan as primary since it has both AI and human
@@ -244,12 +258,12 @@ def get_school_count(filters: Dict[str, Any]) -> int:
         metrics = islamabad_queries.get_summary_metrics()
         return metrics.get("schools", 0)
 
+    elif region == "Rawalpindi":
+        return rawalpindi_queries.get_school_count()
+
     elif region == "Combined":
-        return (
-            moawin_queries.get_school_count() +
-            balochistan_queries.get_summary_metrics().get("schools", 0) +
-            islamabad_queries.get_summary_metrics().get("schools", 0)
-        )
+        bq = unified_queries.get_combined_summary()
+        return bq["schools"] + moawin_queries.get_school_count()
 
     return 0
 
@@ -268,12 +282,12 @@ def get_teacher_count(filters: Dict[str, Any]) -> int:
     elif region == "Islamabad":
         return islamabad_queries.get_teacher_count()
 
+    elif region == "Rawalpindi":
+        return rawalpindi_queries.get_teacher_count()
+
     elif region == "Combined":
-        return (
-            moawin_queries.get_teacher_count() +
-            balochistan_queries.get_summary_metrics().get("teachers", 0) +
-            islamabad_queries.get_teacher_count()
-        )
+        bq = unified_queries.get_combined_summary()
+        return bq["teachers"] + moawin_queries.get_teacher_count()
 
     return 0
 
@@ -293,12 +307,12 @@ def get_student_count(filters: Dict[str, Any]) -> int:
         metrics = islamabad_queries.get_summary_metrics()
         return metrics.get("students", 0)
 
+    elif region == "Rawalpindi":
+        return rawalpindi_queries.get_student_count()
+
     elif region == "Combined":
-        return (
-            moawin_queries.get_student_count() +
-            balochistan_queries.get_summary_metrics().get("students", 0) +
-            islamabad_queries.get_summary_metrics().get("students", 0)
-        )
+        bq = unified_queries.get_combined_summary()
+        return bq["students"] + moawin_queries.get_student_count()
 
     return 0
 
@@ -324,7 +338,13 @@ def get_recent_sessions(filters: Dict[str, Any], limit: int = 10) -> List[Dict[s
         return balochistan_queries.get_recent_observations(limit)
 
     elif region == "Combined":
-        return balochistan_queries.get_recent_observations(limit)
+        # Combine Balochistan observations + Rumi coaching sessions
+        bal = balochistan_queries.get_recent_observations(limit // 2)
+        rumi = rumi_queries.get_recent_sessions(limit // 2)
+        combined = bal + rumi
+        # Sort by date descending
+        combined.sort(key=lambda x: x.get("date", ""), reverse=True)
+        return combined[:limit]
 
     # Default fallback
     return []
