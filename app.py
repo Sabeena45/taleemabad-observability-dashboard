@@ -126,10 +126,11 @@ def main():
         )])
 
         base_layout = plotly_layout_defaults(height=160)
+        # Override margin for this compact chart
+        base_layout['margin'] = dict(t=10, b=10, l=10, r=10)
         fig.update_layout(
             **base_layout,
             showlegend=False,
-            margin=dict(t=10, b=10, l=10, r=10),
             annotations=[dict(
                 text=f'{open_ratio:.0f}%',
                 x=0.5, y=0.5,
@@ -197,10 +198,11 @@ def render_teaching_tab(filters):
     ))
 
     base_layout = plotly_layout_defaults(height=320)
+    # Override margin for this chart with labels on left
+    base_layout['margin'] = dict(t=20, b=40, l=140, r=60)
     fig.update_layout(
         **base_layout,
         showlegend=False,
-        margin=dict(t=20, b=40, l=140, r=60),
         xaxis=dict(
             range=[0, 100],
             showgrid=True,
