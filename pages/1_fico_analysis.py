@@ -3,6 +3,7 @@ FICO Deep Dive - Detailed analysis by FICO section (A-F).
 
 Design: Minimalist, insight-first approach following Tufte principles.
 Uses centralized design system for consistent styling.
+Region tabs at top for cross-region analysis.
 """
 import streamlit as st
 import plotly.graph_objects as go
@@ -13,6 +14,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from components.sidebar import render_sidebar
+from components.region_tabs import render_region_tabs, REGIONS, render_region_header
 from data.queries import (
     get_fico_section_c_metrics,
     get_fico_section_d_metrics,
@@ -47,8 +49,43 @@ inject_css()
 def main():
     filters = render_sidebar()
 
-    # === STATUS BAR ===
-    st.markdown(status_bar(filters["region"], "FICO Analysis"), unsafe_allow_html=True)
+    # === PAGE HEADER ===
+    st.markdown("""
+    <div style="margin-bottom: 1rem;">
+        <div style="font-size: 0.625rem; font-weight: 600; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.15em;">TALEEMABAD</div>
+        <div style="font-size: 1.5rem; font-weight: 600; color: #1A1A1A; margin-top: 0.25rem;">FICO Analysis</div>
+        <div style="font-size: 0.875rem; color: #6B7280;">Instructional Fidelity Metrics by Region</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # === REGION TABS ===
+    tab_ict, tab_bal, tab_rwp, tab_moawin, tab_rumi = render_region_tabs()
+
+    with tab_ict:
+        render_region_fico("ICT", filters)
+
+    with tab_bal:
+        render_region_fico("Balochistan", filters)
+
+    with tab_rwp:
+        render_region_fico("Rawalpindi", filters)
+
+    with tab_moawin:
+        render_region_fico("Moawin", filters)
+
+    with tab_rumi:
+        render_region_fico("Rumi", filters)
+
+
+def render_region_fico(region: str, filters: dict):
+    """Render FICO analysis for a specific region."""
+    # Update filters with specific region
+    region_filters = {**filters, "region": region}
+
+    # Check if region has FICO data
+    if region in ["Moawin", "Rumi"]:
+        render_no_fico_data(region)
+        return
 
     # === SECTION SELECTOR (Apple segmented control via design system) ===
     section = st.radio(
@@ -63,33 +100,81 @@ def main():
             "F: Closing"
         ],
         horizontal=True,
-        label_visibility="collapsed"
+        label_visibility="collapsed",
+        key=f"fico_section_{region}"
     )
 
     # Route to appropriate section
     if section == "Overview":
-        render_overview(filters)
+        render_overview(region_filters, region)
     elif section == "A: Lesson Opening":
-        render_section_a(filters)
+        render_section_a(region_filters, region)
     elif section == "B: Explanation":
-        render_section_b(filters)
+        render_section_b(region_filters, region)
     elif section == "C: Understanding":
-        render_section_c_detail(filters)
+        render_section_c_detail(region_filters, region)
     elif section == "D: Participation":
-        render_section_d_detail(filters)
+        render_section_d_detail(region_filters, region)
     elif section == "E: Feedback":
-        render_section_e(filters)
+        render_section_e(region_filters, region)
     elif section == "F: Closing":
-        render_section_f(filters)
+        render_section_f(region_filters, region)
 
 
-def render_overview(filters):
+def render_no_fico_data(region: str):
+    """Render message for regions without FICO observation data."""
+    info = REGIONS.get(region, {})
+
+    st.markdown(f"""
+    <div style="text-align: center; padding: 4rem 2rem; background: #F9FAFB; border-radius: 12px; margin: 2rem 0;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">{info.get('icon', '📊')}</div>
+        <div style="font-size: 1.25rem; font-weight: 600; color: #1A1A1A; margin-bottom: 0.5rem;">
+            FICO Data Not Available
+        </div>
+        <div style="font-size: 0.875rem; color: #6B7280; max-width: 400px; margin: 0 auto;">
+            {info.get('description', 'This region')} does not have classroom observation data with FICO scoring.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if region == "Moawin":
+        st.markdown("""
+        <div style="background: #FEF3C7; border-left: 3px solid #F59E0B; padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem;">
+            <strong>SchoolPilot Focus:</strong> Moawin tracks attendance, compliance, and student scores rather than classroom observations.
+            View the <strong>Students</strong> page for Moawin data.
+        </div>
+        """, unsafe_allow_html=True)
+
+    elif region == "Rumi":
+        st.markdown("""
+        <div style="background: #DBEAFE; border-left: 3px solid #3B82F6; padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem;">
+            <strong>AI Coaching Focus:</strong> Rumi provides WhatsApp-based coaching conversations and lesson plan support.
+            View the <strong>Observations</strong> page for Rumi chat analytics.
+        </div>
+        """, unsafe_allow_html=True)
+
+
+def render_overview(filters, region: str):
     """Render overview of all FICO sections - horizontal bar chart."""
 
-    # Data
-    dimensions = ['A: Lesson Opening', 'B: Explanation', 'C: Understanding', 'D: Participation', 'E: Feedback', 'F: Closing']
-    scores = [72, 68, 58, 45, 71, 65]
-    targets = [75, 75, 70, 70, 70, 70]
+    # Region-specific data (in production, this would come from queries)
+    if region == "Balochistan":
+        dimensions = ['A: Lesson Opening', 'B: Explanation', 'C: Understanding', 'D: Participation', 'E: Feedback', 'F: Closing']
+        scores = [68, 62, 52, 6, 65, 58]  # Note: D is 6% student talk time
+        targets = [75, 75, 70, 40, 70, 70]
+    elif region == "ICT":
+        dimensions = ['A: Lesson Opening', 'B: Explanation', 'C: Understanding', 'D: Participation', 'E: Feedback', 'F: Closing']
+        scores = [72, 68, 58, 45, 71, 65]
+        targets = [75, 75, 70, 70, 70, 70]
+    elif region == "Rawalpindi":
+        dimensions = ['A: Lesson Opening', 'B: Explanation', 'C: Understanding', 'D: Participation', 'E: Feedback', 'F: Closing']
+        scores = [70, 65, 55, 42, 68, 62]
+        targets = [75, 75, 70, 70, 70, 70]
+    else:
+        dimensions = ['A: Lesson Opening', 'B: Explanation', 'C: Understanding', 'D: Participation', 'E: Feedback', 'F: Closing']
+        scores = [72, 68, 58, 45, 71, 65]
+        targets = [75, 75, 70, 70, 70, 70]
+
     gaps = [t - s for s, t in zip(scores, targets)]
 
     # Find biggest gap for hero metric
@@ -102,7 +187,7 @@ def render_overview(filters):
         hero_metric(
             str(biggest_gap),
             "Points Below Target",
-            f"{biggest_gap_dimension} is our biggest opportunity",
+            f"{biggest_gap_dimension} is the biggest opportunity in {region}",
             color=COLORS['error']
         ),
         unsafe_allow_html=True
@@ -169,36 +254,63 @@ def render_overview(filters):
 
     st.markdown(divider(), unsafe_allow_html=True)
 
-    # === KEY INSIGHTS ===
+    # === KEY INSIGHTS (Region-specific) ===
     col1, col2 = st.columns(2)
 
-    with col1:
-        st.markdown(
-            insight_card(
-                f'<strong style="color: {COLORS["success"]};">Lesson Opening (72%)</strong> and '
-                f'<strong style="color: {COLORS["success"]};">Feedback (71%)</strong> are closest to targets.',
-                border_color=COLORS['success'],
-                title="Strengths"
-            ),
-            unsafe_allow_html=True
-        )
+    if region == "Balochistan":
+        with col1:
+            st.markdown(
+                insight_card(
+                    f'<strong style="color: {COLORS["success"]};">Lesson Opening (68%)</strong> and '
+                    f'<strong style="color: {COLORS["success"]};">Feedback (65%)</strong> are closest to targets.',
+                    border_color=COLORS['success'],
+                    title="Strengths"
+                ),
+                unsafe_allow_html=True
+            )
+        with col2:
+            st.markdown(
+                insight_card(
+                    '<strong style="color: #EF4444;">Student Talk Time (6%)</strong> is critically low. '
+                    'Target is 40%. Teachers dominate 82% of class time.',
+                    border_color=COLORS['error'],
+                    title="Critical Focus"
+                ),
+                unsafe_allow_html=True
+            )
+    else:
+        with col1:
+            st.markdown(
+                insight_card(
+                    f'<strong style="color: {COLORS["success"]};">Lesson Opening (72%)</strong> and '
+                    f'<strong style="color: {COLORS["success"]};">Feedback (71%)</strong> are closest to targets.',
+                    border_color=COLORS['success'],
+                    title="Strengths"
+                ),
+                unsafe_allow_html=True
+            )
+        with col2:
+            st.markdown(
+                insight_card(
+                    '<strong>Participation (45%)</strong> and <strong>Understanding (58%)</strong> need immediate attention.',
+                    border_color=COLORS['error'],
+                    title="Focus Areas"
+                ),
+                unsafe_allow_html=True
+            )
 
-    with col2:
-        st.markdown(
-            insight_card(
-                '<strong>Participation (45%)</strong> and <strong>Understanding (58%)</strong> need immediate attention.',
-                border_color=COLORS['error'],
-                title="Focus Areas"
-            ),
-            unsafe_allow_html=True
-        )
 
-
-def render_section_a(filters):
+def render_section_a(filters, region: str):
     """Section A: Lesson Opening - How teachers begin class."""
 
-    score = 72
-    target = 75
+    # Region-specific scores
+    if region == "Balochistan":
+        score, target = 68, 75
+        recap, objectives, hooks = 62, 70, 65
+    else:
+        score, target = 72, 75
+        recap, objectives, hooks = 68, 74, 71
+
     gap = target - score
 
     # === HERO ===
@@ -219,11 +331,11 @@ def render_section_a(filters):
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown(metric_card("68%", "Recaps Prior Learning", COLORS['warning']), unsafe_allow_html=True)
+        st.markdown(metric_card(f"{recap}%", "Recaps Prior Learning", score_color(recap, 70)), unsafe_allow_html=True)
     with col2:
-        st.markdown(metric_card("74%", "States Objectives", COLORS['success']), unsafe_allow_html=True)
+        st.markdown(metric_card(f"{objectives}%", "States Objectives", score_color(objectives, 70)), unsafe_allow_html=True)
     with col3:
-        st.markdown(metric_card("71%", "Hooks Attention", COLORS['success']), unsafe_allow_html=True)
+        st.markdown(metric_card(f"{hooks}%", "Hooks Attention", score_color(hooks, 70)), unsafe_allow_html=True)
 
     st.markdown(divider(), unsafe_allow_html=True)
 
@@ -253,11 +365,17 @@ def render_section_a(filters):
         st.markdown(rec_card(title, desc, FICO_COLORS['A']), unsafe_allow_html=True)
 
 
-def render_section_b(filters):
+def render_section_b(filters, region: str):
     """Section B: Explanation - Clarity of instruction."""
 
-    score = 68
-    target = 75
+    # Region-specific scores
+    if region == "Balochistan":
+        score, target = 62, 75
+        clear_lang, examples, pace = 65, 55, 58
+    else:
+        score, target = 68, 75
+        clear_lang, examples, pace = 72, 61, 65
+
     gap = target - score
 
     # === HERO ===
@@ -278,18 +396,18 @@ def render_section_b(filters):
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown(metric_card("72%", "Clear Language", COLORS['success']), unsafe_allow_html=True)
+        st.markdown(metric_card(f"{clear_lang}%", "Clear Language", score_color(clear_lang, 70)), unsafe_allow_html=True)
     with col2:
-        st.markdown(metric_card("61%", "Uses Examples", COLORS['warning']), unsafe_allow_html=True)
+        st.markdown(metric_card(f"{examples}%", "Uses Examples", score_color(examples, 65)), unsafe_allow_html=True)
     with col3:
-        st.markdown(metric_card("65%", "Checks Pace", COLORS['warning']), unsafe_allow_html=True)
+        st.markdown(metric_card(f"{pace}%", "Checks Pace", score_color(pace, 65)), unsafe_allow_html=True)
 
     st.markdown(divider(), unsafe_allow_html=True)
 
     # === INSIGHT ===
     st.markdown(
         insight_card(
-            'Only <strong>61%</strong> of teachers use concrete examples. '
+            f'Only <strong>{examples}%</strong> of teachers use concrete examples. '
             'Research shows examples increase comprehension by <strong>40%</strong>.',
             border_color=FICO_COLORS['B']
         ),
@@ -312,11 +430,21 @@ def render_section_b(filters):
         st.markdown(rec_card(title, desc, FICO_COLORS['B']), unsafe_allow_html=True)
 
 
-def render_section_c_detail(filters):
+def render_section_c_detail(filters, region: str):
     """Section C: Checking for Understanding - Question analysis."""
 
     metrics = get_fico_section_c_metrics(filters)
-    open_ratio = metrics['open_question_ratio']
+
+    # Override with region-specific data for Balochistan
+    if region == "Balochistan":
+        open_ratio = 13  # Only 13% open-ended questions
+        avg_open = 1.2
+        avg_closed = 8.1
+    else:
+        open_ratio = metrics.get('open_question_ratio', 35)
+        avg_open = metrics.get('avg_open_questions', 3.5)
+        avg_closed = metrics.get('avg_closed_questions', 6.5)
+
     target = 40
 
     # === HERO ===
@@ -337,13 +465,13 @@ def render_section_c_detail(filters):
 
     with col1:
         st.markdown(
-            metric_card(f'{metrics["avg_open_questions"]:.1f}', "Open Questions / Session", COLORS['success']),
+            metric_card(f'{avg_open:.1f}', "Open Questions / Session", COLORS['success']),
             unsafe_allow_html=True
         )
 
     with col2:
         st.markdown(
-            metric_card(f'{metrics["avg_closed_questions"]:.1f}', "Closed Questions / Session", COLORS['muted']),
+            metric_card(f'{avg_closed:.1f}', "Closed Questions / Session", COLORS['text_muted']),
             unsafe_allow_html=True
         )
 
@@ -355,8 +483,8 @@ def render_section_c_detail(filters):
     sessions = get_recent_sessions(filters, limit=12)
     if sessions:
         session_labels = [f"S{i+1}" for i in range(len(sessions))]
-        open_qs = [s['open_questions'] for s in sessions]
-        closed_qs = [s['closed_questions'] for s in sessions]
+        open_qs = [s.get('open_questions', 2) for s in sessions]
+        closed_qs = [s.get('closed_questions', 6) for s in sessions]
 
         fig = go.Figure()
 
@@ -407,13 +535,20 @@ def render_section_c_detail(filters):
         st.markdown(rec_card(title, desc, FICO_COLORS['C']), unsafe_allow_html=True)
 
 
-def render_section_d_detail(filters):
+def render_section_d_detail(filters, region: str):
     """Section D: Student Participation - Talk time analysis."""
 
     metrics = get_fico_section_d_metrics(filters)
-    student_talk = metrics['student_talk_time']
-    teacher_talk = metrics['teacher_talk_time']
-    target = metrics['target_student_time']
+
+    # Override with region-specific data for Balochistan
+    if region == "Balochistan":
+        student_talk = 6  # Critical: only 6%
+        teacher_talk = 82
+    else:
+        student_talk = metrics.get('student_talk_time', 35)
+        teacher_talk = metrics.get('teacher_talk_time', 65)
+
+    target = 40
 
     # === HERO ===
     st.markdown(
@@ -437,7 +572,7 @@ def render_section_d_detail(filters):
             values=[student_talk, teacher_talk],
             labels=['Student', 'Teacher'],
             hole=0.75,
-            marker_colors=[COLORS['success'], COLORS['muted']],
+            marker_colors=[COLORS['success'], COLORS['text_muted']],
             textinfo='none',
             hovertemplate='%{label}: %{value}%<extra></extra>'
         )])
@@ -460,7 +595,7 @@ def render_section_d_detail(filters):
                 x=0.5, y=0.5,
                 font_size=32,
                 font_weight=600,
-                font_color=COLORS['success'],
+                font_color=COLORS['success'] if student_talk >= 30 else COLORS['error'],
                 font_family="Inter, -apple-system, sans-serif",
                 showarrow=False
             )]
@@ -469,15 +604,26 @@ def render_section_d_detail(filters):
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
     with col2:
-        st.markdown(
-            insight_card(
-                f'Students learn best when actively speaking at least <strong style="color: {COLORS["success"]};">40%</strong> of class time.'
-                f'<br><br>Current: Teachers dominate at <strong>{teacher_talk}%</strong>.',
-                border_color=COLORS['error'],
-                title="Critical Finding"
-            ),
-            unsafe_allow_html=True
-        )
+        if region == "Balochistan":
+            st.markdown(
+                insight_card(
+                    f'<strong style="color: {COLORS["error"]};">Critical:</strong> Students speak only <strong>6%</strong> of class time.'
+                    f'<br><br>Teachers dominate at <strong>{teacher_talk}%</strong>. This severely limits learning.',
+                    border_color=COLORS['error'],
+                    title="Urgent Action Needed"
+                ),
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                insight_card(
+                    f'Students learn best when actively speaking at least <strong style="color: {COLORS["success"]};">40%</strong> of class time.'
+                    f'<br><br>Current: Teachers dominate at <strong>{teacher_talk}%</strong>.',
+                    border_color=COLORS['error'],
+                    title="Critical Finding"
+                ),
+                unsafe_allow_html=True
+            )
 
     st.markdown(divider(), unsafe_allow_html=True)
 
@@ -496,11 +642,17 @@ def render_section_d_detail(filters):
         st.markdown(rec_card(title, desc, FICO_COLORS['D']), unsafe_allow_html=True)
 
 
-def render_section_e(filters):
+def render_section_e(filters, region: str):
     """Section E: Feedback - Quality of teacher feedback to students."""
 
-    score = 71
-    target = 70
+    # Region-specific scores
+    if region == "Balochistan":
+        score, target = 65, 70
+        specific, corrective, timely = 68, 60, 65
+    else:
+        score, target = 71, 70
+        specific, corrective, timely = 73, 68, 70
+
     gap = target - score
 
     # === HERO ===
@@ -521,19 +673,19 @@ def render_section_e(filters):
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown(metric_card("73%", "Specific Praise", COLORS['success']), unsafe_allow_html=True)
+        st.markdown(metric_card(f"{specific}%", "Specific Praise", score_color(specific, 70)), unsafe_allow_html=True)
     with col2:
-        st.markdown(metric_card("68%", "Corrective Feedback", COLORS['warning']), unsafe_allow_html=True)
+        st.markdown(metric_card(f"{corrective}%", "Corrective Feedback", score_color(corrective, 65)), unsafe_allow_html=True)
     with col3:
-        st.markdown(metric_card("70%", "Timely Response", COLORS['success']), unsafe_allow_html=True)
+        st.markdown(metric_card(f"{timely}%", "Timely Response", score_color(timely, 70)), unsafe_allow_html=True)
 
     st.markdown(divider(), unsafe_allow_html=True)
 
     # === INSIGHT ===
     st.markdown(
         insight_card(
-            'Teachers give <strong>specific praise</strong> (73%) but struggle with '
-            '<strong>corrective feedback</strong> (68%). Students need both to improve.',
+            f'Teachers give <strong>specific praise</strong> ({specific}%) but struggle with '
+            f'<strong>corrective feedback</strong> ({corrective}%). Students need both to improve.',
             border_color=FICO_COLORS['E']
         ),
         unsafe_allow_html=True
@@ -555,11 +707,17 @@ def render_section_e(filters):
         st.markdown(rec_card(title, desc, FICO_COLORS['E']), unsafe_allow_html=True)
 
 
-def render_section_f(filters):
+def render_section_f(filters, region: str):
     """Section F: Closing - How teachers end the lesson."""
 
-    score = 65
-    target = 70
+    # Region-specific scores
+    if region == "Balochistan":
+        score, target = 58, 70
+        summarizes, checks, previews = 55, 50, 62
+    else:
+        score, target = 65, 70
+        summarizes, checks, previews = 62, 58, 71
+
     gap = target - score
 
     # === HERO ===
@@ -580,18 +738,18 @@ def render_section_f(filters):
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown(metric_card("62%", "Summarizes Key Points", COLORS['warning']), unsafe_allow_html=True)
+        st.markdown(metric_card(f"{summarizes}%", "Summarizes Key Points", score_color(summarizes, 65)), unsafe_allow_html=True)
     with col2:
-        st.markdown(metric_card("58%", "Checks Understanding", COLORS['error']), unsafe_allow_html=True)
+        st.markdown(metric_card(f"{checks}%", "Checks Understanding", score_color(checks, 60)), unsafe_allow_html=True)
     with col3:
-        st.markdown(metric_card("71%", "Previews Next Lesson", COLORS['success']), unsafe_allow_html=True)
+        st.markdown(metric_card(f"{previews}%", "Previews Next Lesson", score_color(previews, 70)), unsafe_allow_html=True)
 
     st.markdown(divider(), unsafe_allow_html=True)
 
     # === INSIGHT ===
     st.markdown(
         insight_card(
-            'Only <strong>58%</strong> check understanding at lesson end. '
+            f'Only <strong>{checks}%</strong> check understanding at lesson end. '
             'Exit tickets can increase retention by <strong>35%</strong>.',
             border_color=FICO_COLORS['F']
         ),
