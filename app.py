@@ -56,12 +56,13 @@ def main():
     filters = render_sidebar()
 
     # === HEADER ===
-    st.markdown("""
-    <div style="padding: 0.5rem 0 1rem 0;">
-        <div style="font-size: 0.625rem; font-weight: 600; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.15em;">TALEEMABAD</div>
-        <div style="font-size: 1.5rem; font-weight: 600; color: #1A1A1A;">Observability Dashboard</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="padding: 0.5rem 0 1rem 0;">'
+        '<div style="font-size: 0.625rem; font-weight: 600; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.15em;">TALEEMABAD</div>'
+        '<div style="font-size: 1.5rem; font-weight: 600; color: #1A1A1A;">Observability Dashboard</div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     # === REGION TABS ===
     tab_ict, tab_bal, tab_rwp, tab_moawin, tab_rumi = render_region_tabs()

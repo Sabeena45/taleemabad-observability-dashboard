@@ -45,13 +45,14 @@ def main():
     filters = render_sidebar()
 
     # === PAGE HEADER ===
-    st.markdown("""
-    <div style="margin-bottom: 1rem;">
-        <div style="font-size: 0.625rem; font-weight: 600; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.15em;">TALEEMABAD</div>
-        <div style="font-size: 1.5rem; font-weight: 600; color: #1A1A1A; margin-top: 0.25rem;">Observations</div>
-        <div style="font-size: 0.875rem; color: #6B7280;">AI vs Human Coaching Analytics by Region</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="margin-bottom: 1rem;">'
+        '<div style="font-size: 0.625rem; font-weight: 600; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.15em;">TALEEMABAD</div>'
+        '<div style="font-size: 1.5rem; font-weight: 600; color: #1A1A1A; margin-top: 0.25rem;">Observations</div>'
+        '<div style="font-size: 0.875rem; color: #6B7280;">AI vs Human Coaching Analytics by Region</div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     # === REGION TABS ===
     tab_ict, tab_bal, tab_rwp, tab_moawin, tab_rumi = render_region_tabs()
@@ -150,12 +151,13 @@ def render_ict_observations(filters, obs_counts):
     st.markdown(divider(), unsafe_allow_html=True)
 
     # === DATA SOURCE NOTE ===
-    st.markdown("""
-    <div style="background: #F3F4F6; padding: 1rem; border-radius: 8px; font-size: 0.875rem; color: #6B7280;">
-        <strong>Data Source:</strong> BigQuery TEACH_TOOL_OBSERVATION_CLEANED table.
-        Human coach observations only - AI observation system not deployed in ICT.
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background: #F3F4F6; padding: 1rem; border-radius: 8px; font-size: 0.875rem; color: #6B7280;">'
+        '<strong>Data Source:</strong> BigQuery TEACH_TOOL_OBSERVATION_CLEANED table. '
+        'Human coach observations only - AI observation system not deployed in ICT.'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
 
 def render_balochistan_observations(filters, obs_counts):
@@ -218,18 +220,19 @@ def render_balochistan_observations(filters, obs_counts):
 def render_rwp_observations(filters, obs_counts):
     """Rawalpindi observations - early stage."""
 
-    st.markdown("""
-    <div style="text-align: center; padding: 4rem 2rem; background: #F9FAFB; border-radius: 12px; margin: 2rem 0;">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">🏫</div>
-        <div style="font-size: 1.25rem; font-weight: 600; color: #1A1A1A; margin-bottom: 0.5rem;">
-            Observation System Launching Soon
-        </div>
-        <div style="font-size: 0.875rem; color: #6B7280; max-width: 400px; margin: 0 auto;">
-            Rawalpindi Prevail longitudinal study is in early deployment phase.
-            Observation data collection will begin Q2 2026.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="text-align: center; padding: 4rem 2rem; background: #F9FAFB; border-radius: 12px; margin: 2rem 0;">'
+        '<div style="font-size: 3rem; margin-bottom: 1rem;">&#127979;</div>'
+        '<div style="font-size: 1.25rem; font-weight: 600; color: #1A1A1A; margin-bottom: 0.5rem;">'
+        'Observation System Launching Soon'
+        '</div>'
+        '<div style="font-size: 0.875rem; color: #6B7280; max-width: 400px; margin: 0 auto;">'
+        'Rawalpindi Prevail longitudinal study is in early deployment phase. '
+        'Observation data collection will begin Q2 2026.'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     # Current stats
     st.markdown(divider(), unsafe_allow_html=True)
@@ -252,23 +255,25 @@ def render_moawin_observations(filters):
 
     info = REGIONS.get("Moawin", {})
 
-    st.markdown(f"""
-    <div style="text-align: center; padding: 4rem 2rem; background: #F9FAFB; border-radius: 12px; margin: 2rem 0;">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">{info.get('icon', '📋')}</div>
-        <div style="font-size: 1.25rem; font-weight: 600; color: #1A1A1A; margin-bottom: 0.5rem;">
-            Different Data Focus
-        </div>
-        <div style="font-size: 0.875rem; color: #6B7280; max-width: 400px; margin: 0 auto;">
-            SchoolPilot tracks attendance, compliance, and student scores — not classroom observations.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="text-align: center; padding: 4rem 2rem; background: #F9FAFB; border-radius: 12px; margin: 2rem 0;">'
+        '<div style="font-size: 3rem; margin-bottom: 1rem;">' + info.get('icon', '📋') + '</div>'
+        '<div style="font-size: 1.25rem; font-weight: 600; color: #1A1A1A; margin-bottom: 0.5rem;">'
+        'Different Data Focus'
+        '</div>'
+        '<div style="font-size: 0.875rem; color: #6B7280; max-width: 400px; margin: 0 auto;">'
+        'SchoolPilot tracks attendance, compliance, and student scores &mdash; not classroom observations.'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
-    st.markdown("""
-    <div style="background: #FEF3C7; border-left: 3px solid #F59E0B; padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem;">
-        <strong>Recommendation:</strong> View the <strong>Students</strong> page for Moawin attendance and assessment data.
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background: #FEF3C7; border-left: 3px solid #F59E0B; padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem;">'
+        '<strong>Recommendation:</strong> View the <strong>Students</strong> page for Moawin attendance and assessment data.'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     # Quick stats
     st.markdown(divider(), unsafe_allow_html=True)

@@ -512,56 +512,57 @@ def plotly_bar_defaults() -> dict:
 def hero_metric(value: str, label: str, context: str = "", color: str = None) -> str:
     """Generate HTML for a hero metric."""
     color_style = f'style="color: {color};"' if color else ''
-    return f'''
-    <div class="hero-metric">
-        <div class="hero-value" {color_style}>{value}</div>
-        <div class="hero-label">{label}</div>
-        <div class="hero-context">{context}</div>
-    </div>
-    '''
+    return (
+        f'<div class="hero-metric">'
+        f'<div class="hero-value" {color_style}>{value}</div>'
+        f'<div class="hero-label">{label}</div>'
+        f'<div class="hero-context">{context}</div>'
+        f'</div>'
+    )
 
 
 def metric_card(value: str, label: str, color: str = None) -> str:
     """Generate HTML for a metric card."""
     color_style = f'style="color: {color};"' if color else ''
-    return f'''
-    <div class="metric-card">
-        <div class="metric-card-value" {color_style}>{value}</div>
-        <div class="metric-card-label">{label}</div>
-    </div>
-    '''
+    return (
+        f'<div class="metric-card">'
+        f'<div class="metric-card-value" {color_style}>{value}</div>'
+        f'<div class="metric-card-label">{label}</div>'
+        f'</div>'
+    )
 
 
 def insight_card(content: str, border_color: str = None, title: str = None) -> str:
-    """Generate HTML for an insight card."""
-    border_style = f'border-left: 3px solid {border_color};' if border_color else ''
-    title_html = f'''
-        <div style="font-size: 0.6875rem; font-weight: 600; color: {border_color}; text-transform: uppercase;
-                    letter-spacing: 0.05em; margin-bottom: 0.75rem;">{title}</div>
-    ''' if title else ''
+    """Generate HTML for an insight card.
 
-    # Use inline styles for content to ensure proper rendering in Streamlit
-    return f'''
-    <div style="background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06); {border_style}">
-        {title_html}
-        <div style="font-size: 1.0625rem; color: #1A1A1A; line-height: 1.6;">{content}</div>
-    </div>
-    '''
+    NOTE: All HTML must be on continuous lines (no blank lines between tags).
+    Streamlit's markdown parser exits HTML mode on blank lines, causing
+    inner divs to render as raw text.
+    """
+    border_style = f'border-left: 3px solid {border_color};' if border_color else ''
+    title_html = (
+        f'<div style="font-size: 0.6875rem; font-weight: 600; color: {border_color}; '
+        f'text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">{title}</div>'
+    ) if title else ''
+
+    return (
+        f'<div style="background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; '
+        f'box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06); {border_style}">'
+        f'{title_html}'
+        f'<div style="font-size: 1.0625rem; color: #1A1A1A; line-height: 1.6;">{content}</div>'
+        f'</div>'
+    )
 
 
 def status_bar(region: str, page_name: str = "") -> str:
     """Generate HTML for the status bar."""
     label = f"{region} · {page_name}" if page_name else region
-    return f'''
-    <div class="status-bar">
-        <span class="status-region">◉ {label}</span>
-        <span class="status-live">
-            <span class="status-dot"></span>
-            Live
-        </span>
-    </div>
-    '''
+    return (
+        f'<div class="status-bar">'
+        f'<span class="status-region">◉ {label}</span>'
+        f'<span class="status-live"><span class="status-dot"></span> Live</span>'
+        f'</div>'
+    )
 
 
 def divider() -> str:
@@ -581,39 +582,35 @@ def obs_card(teacher: str, school: str, subject: str, score: int, date: str, obs
     type_color = COLORS['info'] if obs_type.lower() == "ai" else COLORS['success']
     score_color_val = COLORS['success'] if score >= 70 else COLORS['warning'] if score >= 60 else COLORS['error']
 
-    return f'''
-    <div class="obs-card {type_class}">
-        <div>
-            <span style="color: {type_color}; margin-right: 0.5rem;">{type_icon}</span>
-            <strong>{teacher}</strong>
-            <span class="obs-meta"> · {school} · {subject}</span>
-        </div>
-        <div style="text-align: right;">
-            <div class="obs-score" style="color: {score_color_val};">{score}%</div>
-            <div class="obs-meta">{date}</div>
-        </div>
-    </div>
-    '''
+    return (
+        f'<div class="obs-card {type_class}">'
+        f'<div><span style="color: {type_color}; margin-right: 0.5rem;">{type_icon}</span>'
+        f'<strong>{teacher}</strong>'
+        f'<span class="obs-meta"> · {school} · {subject}</span></div>'
+        f'<div style="text-align: right;">'
+        f'<div class="obs-score" style="color: {score_color_val};">{score}%</div>'
+        f'<div class="obs-meta">{date}</div></div>'
+        f'</div>'
+    )
 
 
 def grade_row(label: str, value: float, color: str) -> str:
     """Generate HTML for a grade progress row."""
-    return f'''
-    <div class="grade-row">
-        <div class="grade-label">{label}</div>
-        <div class="grade-bar">
-            <div class="grade-fill" style="width: {value}%; background: {color};"></div>
-        </div>
-        <div class="grade-value" style="color: {color};">{value:.0f}%</div>
-    </div>
-    '''
+    return (
+        f'<div class="grade-row">'
+        f'<div class="grade-label">{label}</div>'
+        f'<div class="grade-bar">'
+        f'<div class="grade-fill" style="width: {value}%; background: {color};"></div></div>'
+        f'<div class="grade-value" style="color: {color};">{value:.0f}%</div>'
+        f'</div>'
+    )
 
 
 def rec_card(title: str, description: str) -> str:
     """Generate HTML for a recommendation card."""
-    return f'''
-    <div class="rec-card">
-        <strong>{title}</strong><br>
-        <span style="color: #6B7280; font-size: 0.8125rem;">{description}</span>
-    </div>
-    '''
+    return (
+        f'<div class="rec-card">'
+        f'<strong>{title}</strong><br>'
+        f'<span style="color: #6B7280; font-size: 0.8125rem;">{description}</span>'
+        f'</div>'
+    )

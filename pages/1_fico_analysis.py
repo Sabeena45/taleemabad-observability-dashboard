@@ -50,13 +50,14 @@ def main():
     filters = render_sidebar()
 
     # === PAGE HEADER ===
-    st.markdown("""
-    <div style="margin-bottom: 1rem;">
-        <div style="font-size: 0.625rem; font-weight: 600; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.15em;">TALEEMABAD</div>
-        <div style="font-size: 1.5rem; font-weight: 600; color: #1A1A1A; margin-top: 0.25rem;">FICO Analysis</div>
-        <div style="font-size: 0.875rem; color: #6B7280;">Instructional Fidelity Metrics by Region</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="margin-bottom: 1rem;">'
+        '<div style="font-size: 0.625rem; font-weight: 600; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.15em;">TALEEMABAD</div>'
+        '<div style="font-size: 1.5rem; font-weight: 600; color: #1A1A1A; margin-top: 0.25rem;">FICO Analysis</div>'
+        '<div style="font-size: 0.875rem; color: #6B7280;">Instructional Fidelity Metrics by Region</div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     # === REGION TABS ===
     tab_ict, tab_bal, tab_rwp, tab_moawin, tab_rumi = render_region_tabs()
@@ -125,33 +126,36 @@ def render_no_fico_data(region: str):
     """Render message for regions without FICO observation data."""
     info = REGIONS.get(region, {})
 
-    st.markdown(f"""
-    <div style="text-align: center; padding: 4rem 2rem; background: #F9FAFB; border-radius: 12px; margin: 2rem 0;">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">{info.get('icon', '📊')}</div>
-        <div style="font-size: 1.25rem; font-weight: 600; color: #1A1A1A; margin-bottom: 0.5rem;">
-            FICO Data Not Available
-        </div>
-        <div style="font-size: 0.875rem; color: #6B7280; max-width: 400px; margin: 0 auto;">
-            {info.get('description', 'This region')} does not have classroom observation data with FICO scoring.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="text-align: center; padding: 4rem 2rem; background: #F9FAFB; border-radius: 12px; margin: 2rem 0;">'
+        '<div style="font-size: 3rem; margin-bottom: 1rem;">' + info.get('icon', '📊') + '</div>'
+        '<div style="font-size: 1.25rem; font-weight: 600; color: #1A1A1A; margin-bottom: 0.5rem;">'
+        'FICO Data Not Available'
+        '</div>'
+        '<div style="font-size: 0.875rem; color: #6B7280; max-width: 400px; margin: 0 auto;">'
+        + info.get('description', 'This region') + ' does not have classroom observation data with FICO scoring.'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     if region == "Moawin":
-        st.markdown("""
-        <div style="background: #FEF3C7; border-left: 3px solid #F59E0B; padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem;">
-            <strong>SchoolPilot Focus:</strong> Moawin tracks attendance, compliance, and student scores rather than classroom observations.
-            View the <strong>Students</strong> page for Moawin data.
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            '<div style="background: #FEF3C7; border-left: 3px solid #F59E0B; padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem;">'
+            '<strong>SchoolPilot Focus:</strong> Moawin tracks attendance, compliance, and student scores rather than classroom observations. '
+            'View the <strong>Students</strong> page for Moawin data.'
+            '</div>',
+            unsafe_allow_html=True
+        )
 
     elif region == "Rumi":
-        st.markdown("""
-        <div style="background: #DBEAFE; border-left: 3px solid #3B82F6; padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem;">
-            <strong>AI Coaching Focus:</strong> Rumi provides WhatsApp-based coaching conversations and lesson plan support.
-            View the <strong>Observations</strong> page for Rumi chat analytics.
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            '<div style="background: #DBEAFE; border-left: 3px solid #3B82F6; padding: 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem;">'
+            '<strong>AI Coaching Focus:</strong> Rumi provides WhatsApp-based coaching conversations and lesson plan support. '
+            'View the <strong>Observations</strong> page for Rumi chat analytics.'
+            '</div>',
+            unsafe_allow_html=True
+        )
 
 
 def render_overview(filters, region: str):
