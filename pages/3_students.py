@@ -17,6 +17,7 @@ from components.sidebar import render_sidebar
 from components.region_tabs import render_region_tabs, REGIONS
 from data.queries import get_student_scores_by_subject, get_attendance_trend
 from data.balochistan_queries import BALOCHISTAN_KNOWN_VALUES
+from data.cache_layer import data_freshness_banner
 from styles.design_system import (
     inject_css,
     hero_metric,
@@ -71,6 +72,7 @@ def main():
         'Assessment & Attendance Analytics by Region</div></div>',
         unsafe_allow_html=True
     )
+    st.markdown(data_freshness_banner(), unsafe_allow_html=True)
 
     # === CROSS-REGION OVERVIEW ===
     render_cross_region_overview()

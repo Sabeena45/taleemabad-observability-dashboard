@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from components.sidebar import render_sidebar
 from components.region_tabs import render_region_tabs, REGIONS
 from data.queries import get_observation_counts, get_observation_trend
+from data.cache_layer import data_freshness_banner
 from styles.design_system import (
     inject_css,
     hero_metric,
@@ -53,6 +54,7 @@ def main():
         '</div>',
         unsafe_allow_html=True
     )
+    st.markdown(data_freshness_banner(), unsafe_allow_html=True)
 
     # === REGION TABS ===
     tab_ict, tab_bal, tab_rwp, tab_moawin, tab_rumi = render_region_tabs()

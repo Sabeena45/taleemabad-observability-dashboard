@@ -20,6 +20,7 @@ from data.queries import (
     get_fico_section_d_metrics,
     get_recent_sessions
 )
+from data.cache_layer import data_freshness_banner
 from styles.design_system import (
     inject_css,
     hero_metric,
@@ -58,6 +59,7 @@ def main():
         '</div>',
         unsafe_allow_html=True
     )
+    st.markdown(data_freshness_banner(), unsafe_allow_html=True)
 
     # === REGION TABS ===
     tab_ict, tab_bal, tab_rwp, tab_moawin, tab_rumi = render_region_tabs()

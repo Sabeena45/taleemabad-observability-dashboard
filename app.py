@@ -1,18 +1,16 @@
 """
 Taleemabad Observability Dashboard
-A minimalist, insight-first dashboard for teaching quality.
+Cross-Region Comparison Dashboard with 6 common metrics.
 
-Design Philosophy (based on research):
+Design Philosophy:
 - Five-second rule: Most important insight visible immediately
-- Maximum data-ink ratio (Edward Tufte)
-- One story per view
-- Progressive disclosure
-- Apple HIG: Clarity, deference, depth
-
-Region-wise analysis: ICT | Balochistan | Rawalpindi | Moawin | Rumi
+- Cross-region comparison: Same 6 metrics across all 5 regions
+- Definitions included: User knows how each metric is calculated
+- "No data available" shown clearly when data doesn't exist
 """
 import streamlit as st
 import plotly.graph_objects as go
+import pandas as pd
 
 # === PAGE CONFIG (must be first) ===
 st.set_page_config(
@@ -24,508 +22,634 @@ st.set_page_config(
 
 # === IMPORTS ===
 from components.sidebar import render_sidebar
-from components.region_tabs import render_region_tabs, REGIONS
-from data import (
-    islamabad_queries,
-    balochistan_queries,
-    rawalpindi_queries,
-    moawin_queries,
-    rumi_queries
+from data.common_metrics import (
+    get_observation_metrics,
+    get_lp_engagement_metrics,
+    get_training_metrics,
+    get_retention_metrics,
+    get_fico_metrics,
+    get_student_learning_metrics,
+    METRIC_DEFINITIONS,
+    REGION_PARAMETERS,
+    REGIONS,
+    REGION_COLORS,
 )
+from data.cache_layer import data_freshness_banner, clear_all_caches
 from styles.design_system import (
     inject_css,
-    hero_metric,
-    status_bar,
-    divider,
     section_title,
-    metric_card,
     insight_card,
+    divider,
     COLORS,
     plotly_layout_defaults,
-    score_color
 )
 
 # === INJECT DESIGN SYSTEM ===
 inject_css()
 
+# Consistent region order
+REGION_ORDER = ["ICT", "Balochistan", "RWP", "Moawin", "Rumi"]
+REGION_LABELS = {
+    "ICT": "ICT",
+    "Balochistan": "Balochistan",
+    "RWP": "Rawalpindi",
+    "Moawin": "Moawin",
+    "Rumi": "Rumi",
+}
+
+
+def _no_data_text(status: str) -> str:
+    """Return display text for non-active statuses."""
+    if status == "not_applicable":
+        return "N/A"
+    if status == "launching_q2_2026":
+        return "Launching Q2 2026"
+    return "No data"
+
+
+def _metric_definition_expander(key: str):
+    """Render a metric definition in a small expander."""
+    defn = METRIC_DEFINITIONS.get(key, {})
+    with st.expander(f"How is this calculated?", expanded=False):
+        st.caption(defn.get("definition", ""))
+
 
 def main():
     """Main dashboard entry point."""
-
-    # === SIDEBAR (collapsed by default, no region selector) ===
     filters = render_sidebar()
 
     # === HEADER ===
     st.markdown(
-        '<div style="padding: 0.5rem 0 1rem 0;">'
-        '<div style="font-size: 0.625rem; font-weight: 600; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.15em;">TALEEMABAD</div>'
-        '<div style="font-size: 1.5rem; font-weight: 600; color: #1A1A1A;">Observability Dashboard</div>'
+        '<div style="padding: 0.5rem 0 0.25rem 0;">'
+        '<div style="font-size: 0.625rem; font-weight: 600; color: #9CA3AF; '
+        'text-transform: uppercase; letter-spacing: 0.15em;">TALEEMABAD</div>'
+        '<div style="font-size: 1.5rem; font-weight: 600; color: #1A1A1A;">'
+        'Observability Dashboard</div>'
         '</div>',
         unsafe_allow_html=True
     )
 
-    # === REGION TABS ===
-    tab_ict, tab_bal, tab_rwp, tab_moawin, tab_rumi = render_region_tabs()
+    # === DATA FRESHNESS BANNER ===
+    st.markdown(data_freshness_banner(), unsafe_allow_html=True)
 
-    with tab_ict:
-        render_ict_dashboard(filters)
+    # === REFRESH BUTTON (sidebar) ===
+    with st.sidebar:
+        if st.button("Refresh Data"):
+            clear_all_caches()
+            st.rerun()
 
-    with tab_bal:
-        render_balochistan_dashboard(filters)
+    # === REGION PARAMETERS SUMMARY ===
+    _render_region_summary()
 
-    with tab_rwp:
-        render_rwp_dashboard(filters)
+    st.markdown(divider(), unsafe_allow_html=True)
 
-    with tab_moawin:
-        render_moawin_dashboard(filters)
+    # === 6 METRIC SECTIONS ===
+    _render_observations_section()
+    st.markdown(divider(), unsafe_allow_html=True)
 
-    with tab_rumi:
-        render_rumi_dashboard(filters)
+    _render_lp_engagement_section()
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    _render_training_section()
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    _render_retention_section()
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    _render_fico_section()
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    _render_student_learning_section()
+    st.markdown(divider(), unsafe_allow_html=True)
+
+    # === SUMMARY TABLE ===
+    _render_summary_table()
 
 
 # =============================================================================
-# REGION-SPECIFIC DASHBOARDS
+# REGION SUMMARY
 # =============================================================================
 
-def render_ict_dashboard(filters):
-    """ICT (Islamabad) Dashboard - BigQuery TEACH observations."""
+def _render_region_summary():
+    """Show region parameters at a glance."""
+    cols = st.columns(5)
+    for i, region in enumerate(REGION_ORDER):
+        params = REGION_PARAMETERS.get(region, {})
+        with cols[i]:
+            color = REGION_COLORS[region]
+            schools = params.get("schools", "—")
+            teachers = params.get("teachers", "—")
+            students = params.get("students", "—")
+            schools_str = f"{schools:,}" if isinstance(schools, int) else str(schools)
+            teachers_str = f"{teachers:,}" if isinstance(teachers, int) else str(teachers)
+            students_str = f"{students:,}" if isinstance(students, int) else str(students)
 
-    # Get data
-    metrics = islamabad_queries.get_summary_metrics(filters.get("time_period", "All Time"))
-    fico = islamabad_queries.get_fico_scores()
-
-    # === HERO ===
-    st.markdown(
-        hero_metric(
-            f"{metrics['teachers']:,}",
-            "Teachers in ICT",
-            f"Across {metrics['schools']} schools · {metrics['observations']} TEACH observations",
-            color=COLORS['info']
-        ),
-        unsafe_allow_html=True
-    )
-
-    # === KEY METRICS ===
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(metric_card(str(metrics['schools']), "Schools"), unsafe_allow_html=True)
-    with col2:
-        st.markdown(metric_card(f"{metrics['teachers']:,}", "Teachers"), unsafe_allow_html=True)
-    with col3:
-        st.markdown(metric_card(str(metrics['observations']), "Observations"), unsafe_allow_html=True)
-    with col4:
-        avg_score = metrics.get('avg_score') or 68
-        st.markdown(metric_card(f"{avg_score}%", "Avg Score", score_color(avg_score, 70)), unsafe_allow_html=True)
-
-    st.markdown(divider(), unsafe_allow_html=True)
-
-    # === FICO SCORES ===
-    st.markdown(section_title("FICO Framework Scores"), unsafe_allow_html=True)
-
-    if fico.get('section_b'):
-        render_fico_bar_chart(fico)
-    else:
-        st.info("FICO score breakdown not available for ICT region. TEACH observations use different scoring.")
-
-    # === INSIGHT ===
-    st.markdown(
-        insight_card(
-            "ICT has the largest teacher base with <strong>9,981 certified teachers</strong>. "
-            "TEACH observations show classroom practices across the Federal Capital. "
-            "Training completion data available via BigQuery.",
-            title="Regional Context"
-        ),
-        unsafe_allow_html=True
-    )
+            st.markdown(
+                f'<div style="border-left: 3px solid {color}; padding: 0.5rem 0.75rem; '
+                f'background: #FAFAFA; border-radius: 4px;">'
+                f'<div style="font-size: 0.8125rem; font-weight: 600; color: {color};">'
+                f'{REGION_LABELS[region]}</div>'
+                f'<div style="font-size: 0.6875rem; color: #6B7280; margin-top: 0.25rem;">'
+                f'{schools_str} schools · {teachers_str} teachers</div>'
+                f'<div style="font-size: 0.6875rem; color: #9CA3AF;">'
+                f'{students_str} students</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
 
 
-def render_balochistan_dashboard(filters):
-    """Balochistan Dashboard - AI + Human observations, FICO, talk time."""
+# =============================================================================
+# SECTION 1: OBSERVATIONS
+# =============================================================================
 
-    # Get data
-    obs_type = filters.get("observation_type", "All Observations")
-    metrics = balochistan_queries.get_summary_metrics(obs_type)
-    talk_time = balochistan_queries.get_talk_time_metrics(obs_type)
-    questions = balochistan_queries.get_question_metrics(obs_type)
-    obs_counts = balochistan_queries.get_observation_counts(obs_type)
-    fico = balochistan_queries.get_fico_scores()
+def _render_observations_section():
+    st.markdown(section_title("1. Observations (vs Benchmark)"), unsafe_allow_html=True)
+    _metric_definition_expander("observations")
 
-    # === HERO: Student Talk Time (the crisis) ===
-    student_talk = talk_time['student_talk_time'] or 6
-    target_talk = talk_time['target_student_time'] or 40
+    data = get_observation_metrics()
 
-    st.markdown(
-        hero_metric(
-            f"{student_talk}%",
-            "Student Talk Time",
-            f"Target: {target_talk}% · Gap: {target_talk - student_talk:.0f} percentage points",
-            color=COLORS['error']
-        ),
-        unsafe_allow_html=True
-    )
+    # Build chart data
+    regions_active = []
+    actuals = []
+    benchmarks = []
+    bar_colors = []
+    annotations = []
 
-    # === KEY METRICS ===
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(metric_card(str(obs_counts['ai_count']), "AI Sessions", COLORS['info']), unsafe_allow_html=True)
-    with col2:
-        st.markdown(metric_card(str(obs_counts['human_count']), "Human Obs", COLORS['success']), unsafe_allow_html=True)
-    with col3:
-        st.markdown(metric_card(str(metrics['schools']), "Schools"), unsafe_allow_html=True)
-    with col4:
-        st.markdown(metric_card(str(metrics['teachers']), "Teachers"), unsafe_allow_html=True)
+    for region in REGION_ORDER:
+        d = data.get(region, {})
+        status = d.get("status", "no_data")
 
-    st.markdown(divider(), unsafe_allow_html=True)
+        if status == "active" and d.get("actual") is not None:
+            regions_active.append(REGION_LABELS[region])
+            actuals.append(d["actual"])
+            benchmarks.append(d.get("benchmark_monthly"))
+            bar_colors.append(REGION_COLORS[region])
+        else:
+            annotations.append(f"**{REGION_LABELS[region]}**: {_no_data_text(status)}")
 
-    # === TWO COLUMN LAYOUT ===
-    col1, col2 = st.columns(2)
-
-    with col1:
-        # Talk Time Donut
-        st.markdown(section_title("Talk Time Distribution"), unsafe_allow_html=True)
-        teacher_talk = talk_time['teacher_talk_time'] or 82
-
-        fig = go.Figure(data=[go.Pie(
-            values=[student_talk, teacher_talk, 100 - student_talk - teacher_talk],
-            labels=['Student', 'Teacher', 'Other'],
-            hole=0.7,
-            marker_colors=[COLORS['success'], COLORS['error'], '#E5E7EB'],
-            textinfo='none'
-        )])
-
-        base_layout = plotly_layout_defaults(height=200)
-        base_layout['margin'] = dict(t=10, b=10, l=10, r=10)
-        fig.update_layout(
-            **base_layout,
-            showlegend=True,
-            legend=dict(orientation='h', y=-0.1, x=0.5, xanchor='center'),
-            annotations=[dict(
-                text=f'{student_talk}%',
-                x=0.5, y=0.5,
-                font_size=28,
-                font_weight=600,
-                font_color=COLORS['error'],
-                showarrow=False
-            )]
-        )
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-
-    with col2:
-        # Question Types
-        st.markdown(section_title("Question Types"), unsafe_allow_html=True)
-        open_q = questions.get('avg_open_questions', 1.9)
-        closed_q = questions.get('avg_closed_questions', 12.8)
-        open_ratio = questions.get('open_question_ratio', 13)
-
-        fig = go.Figure(data=[go.Pie(
-            values=[open_ratio, 100 - open_ratio],
-            labels=['Open-ended', 'Closed'],
-            hole=0.7,
-            marker_colors=[COLORS['info'], '#E5E7EB'],
-            textinfo='none'
-        )])
-
-        base_layout = plotly_layout_defaults(height=200)
-        base_layout['margin'] = dict(t=10, b=10, l=10, r=10)
-        fig.update_layout(
-            **base_layout,
-            showlegend=True,
-            legend=dict(orientation='h', y=-0.1, x=0.5, xanchor='center'),
-            annotations=[dict(
-                text=f'{open_ratio:.0f}%',
-                x=0.5, y=0.5,
-                font_size=28,
-                font_weight=600,
-                font_color=COLORS['info'],
-                showarrow=False
-            )]
-        )
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-
-    st.markdown(divider(), unsafe_allow_html=True)
-
-    # === FICO SCORES ===
-    st.markdown(section_title("FICO Framework Scores"), unsafe_allow_html=True)
-    render_fico_bar_chart(fico)
-
-    # === INSIGHT ===
-    st.markdown(
-        insight_card(
-            f"Balochistan Winter School shows <strong>{student_talk}% student talk time</strong> vs 40% target. "
-            f"Teachers ask <strong>{closed_q:.0f} closed questions</strong> for every <strong>{open_q:.0f} open</strong>. "
-            "AI observations (522) enable continuous feedback at scale.",
-            border_color=COLORS['error'],
-            title="Implementation Gap"
-        ),
-        unsafe_allow_html=True
-    )
-
-
-def render_rwp_dashboard(filters):
-    """Rawalpindi Dashboard - Early stage, events tracking."""
-
-    # Get data
-    metrics = rawalpindi_queries.get_summary_metrics(filters.get("time_period", "All Time"))
-
-    # === HERO ===
-    st.markdown(
-        hero_metric(
-            f"{metrics['teachers']}",
-            "Teachers Onboarded",
-            f"Prevail Longitudinal Study · {metrics['schools']} schools",
-            color=COLORS['info']
-        ),
-        unsafe_allow_html=True
-    )
-
-    # === KEY METRICS ===
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(metric_card(str(metrics['schools']), "Schools"), unsafe_allow_html=True)
-    with col2:
-        st.markdown(metric_card(str(metrics['teachers']), "Teachers"), unsafe_allow_html=True)
-    with col3:
-        events = rawalpindi_queries.get_event_count()
-        st.markdown(metric_card(f"{events:,}", "Events"), unsafe_allow_html=True)
-    with col4:
-        st.markdown(metric_card("—", "Observations", COLORS['muted']), unsafe_allow_html=True)
-
-    st.markdown(divider(), unsafe_allow_html=True)
-
-    # === STATUS MESSAGE ===
-    st.markdown(
-        insight_card(
-            "Rawalpindi is part of the <strong>Prevail Longitudinal Study</strong>. "
-            "Schools and teachers are onboarded, with <strong>444,656 analytics events</strong> tracked. "
-            "Observation system launching soon.",
-            title="Early Stage"
-        ),
-        unsafe_allow_html=True
-    )
-
-    # === PLACEHOLDER CHART ===
-    st.markdown(section_title("Event Tracking"), unsafe_allow_html=True)
-    st.info("📊 Event analytics dashboard coming soon. Currently tracking platform engagement across 21 schools.")
-
-
-def render_moawin_dashboard(filters):
-    """Moawin/SchoolPilot Dashboard - Attendance, compliance, scores."""
-
-    # Get data
-    metrics = moawin_queries.get_summary_metrics(filters.get("time_period", "All Time"))
-    attendance_trend = moawin_queries.get_attendance_trend(30)
-    scores_by_subject = moawin_queries.get_student_scores_by_subject()
-
-    # === HERO ===
-    avg_attendance = metrics.get('avg_attendance', 87.5)
-
-    st.markdown(
-        hero_metric(
-            f"{avg_attendance}%",
-            "Average Attendance",
-            f"{metrics['schools']} schools · {metrics['students']:,} students tracked",
-            color=COLORS['success'] if avg_attendance >= 85 else COLORS['warning']
-        ),
-        unsafe_allow_html=True
-    )
-
-    # === KEY METRICS ===
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(metric_card(str(metrics['schools']), "Schools"), unsafe_allow_html=True)
-    with col2:
-        st.markdown(metric_card(str(metrics['teachers']), "Teachers"), unsafe_allow_html=True)
-    with col3:
-        st.markdown(metric_card(f"{metrics['students']:,}", "Students"), unsafe_allow_html=True)
-    with col4:
-        st.markdown(metric_card(f"{avg_attendance}%", "Attendance", COLORS['success']), unsafe_allow_html=True)
-
-    st.markdown(divider(), unsafe_allow_html=True)
-
-    # === ATTENDANCE TREND ===
-    st.markdown(section_title("Attendance Trend (30 Days)"), unsafe_allow_html=True)
-
-    if attendance_trend:
-        dates = [d['date'] for d in attendance_trend]
-        rates = [d['rate'] for d in attendance_trend]
-
+    if actuals:
         fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=dates,
-            y=rates,
-            mode='lines',
-            line=dict(color=COLORS['info'], width=2, shape='spline'),
-            fill='tozeroy',
-            fillcolor='rgba(59, 130, 246, 0.06)'
+
+        fig.add_trace(go.Bar(
+            x=regions_active,
+            y=actuals,
+            name="Actual",
+            marker_color=bar_colors,
+            text=[f"{v:,}" for v in actuals],
+            textposition="outside",
         ))
 
-        # Target line
-        fig.add_hline(y=85, line_dash="dash", line_color=COLORS['success'],
-                      annotation_text="Target: 85%", annotation_position="right")
+        # Add benchmark markers where available
+        bm_x = [r for r, b in zip(regions_active, benchmarks) if b is not None]
+        bm_y = [b for b in benchmarks if b is not None]
+        if bm_x:
+            fig.add_trace(go.Scatter(
+                x=bm_x,
+                y=bm_y,
+                mode="markers",
+                marker=dict(symbol="line-ew-open", size=16, color="#9CA3AF", line_width=3),
+                name="Monthly Benchmark",
+            ))
 
-        base_layout = plotly_layout_defaults(height=250)
-        base_layout['yaxis'] = dict(range=[0, 100], ticksuffix='%')
-        fig.update_layout(**base_layout, showlegend=False)
+        base_layout = plotly_layout_defaults(height=300)
+        base_layout["showlegend"] = bool(bm_x)
+        base_layout["legend"] = dict(
+            orientation="h", yanchor="bottom", y=1.02,
+            xanchor="right", x=1, font=dict(size=11)
+        )
+        fig.update_layout(**base_layout)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-    else:
-        st.info("Attendance trend data loading...")
+    if annotations:
+        st.caption(" · ".join(annotations))
 
-    st.markdown(divider(), unsafe_allow_html=True)
 
-    # === SCORES BY SUBJECT ===
-    st.markdown(section_title("Scores by Subject"), unsafe_allow_html=True)
+# =============================================================================
+# SECTION 2: LESSON PLAN ENGAGEMENT
+# =============================================================================
 
-    if scores_by_subject:
-        subjects = [s['subject'] for s in scores_by_subject[:8]]
-        avg_scores = [s['avg_score'] for s in scores_by_subject[:8]]
-        colors = [score_color(s, 70) for s in avg_scores]
+def _render_lp_engagement_section():
+    st.markdown(section_title("2. Lesson Plan Engagement"), unsafe_allow_html=True)
+    _metric_definition_expander("lp_engagement")
 
+    data = get_lp_engagement_metrics()
+
+    regions_show = []
+    values = []
+    bar_colors = []
+    hover_texts = []
+    annotations = []
+
+    for region in REGION_ORDER:
+        d = data.get(region, {})
+        status = d.get("status", "no_data")
+
+        if status == "active" and d.get("total_events", 0) > 0:
+            regions_show.append(REGION_LABELS[region])
+            total = d["total_events"]
+            values.append(total)
+            bar_colors.append(REGION_COLORS[region])
+            teachers = d.get("unique_teachers", 0)
+            per_t = d.get("per_teacher", 0)
+            extra = d.get("type", "")
+            hover = f"Total: {total:,}<br>Teachers: {teachers:,}<br>Per teacher: {per_t}"
+            if extra:
+                hover += f"<br>Type: {extra}"
+            hover_texts.append(hover)
+        else:
+            annotations.append(f"**{REGION_LABELS[region]}**: {_no_data_text(status)}")
+
+    if values:
         fig = go.Figure()
         fig.add_trace(go.Bar(
-            y=subjects,
-            x=avg_scores,
-            orientation='h',
-            marker_color=colors,
-            text=[f'{s:.0f}%' for s in avg_scores],
-            textposition='outside'
+            y=regions_show,
+            x=values,
+            orientation="h",
+            marker_color=bar_colors,
+            text=[f"{v:,}" for v in values],
+            textposition="outside",
+            hovertext=hover_texts,
+            hoverinfo="text",
+        ))
+
+        base_layout = plotly_layout_defaults(height=250)
+        base_layout["margin"] = dict(t=10, b=40, l=100, r=80)
+        base_layout["yaxis"] = dict(autorange="reversed")
+        base_layout["showlegend"] = False
+        fig.update_layout(**base_layout)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    if annotations:
+        st.caption(" · ".join(annotations))
+
+
+# =============================================================================
+# SECTION 3: TEACHER TRAINING ENGAGEMENT
+# =============================================================================
+
+def _render_training_section():
+    st.markdown(section_title("3. Teacher Training Engagement"), unsafe_allow_html=True)
+    _metric_definition_expander("training")
+
+    data = get_training_metrics()
+
+    regions_show = []
+    values = []
+    bar_colors = []
+    hover_texts = []
+    annotations = []
+
+    for region in REGION_ORDER:
+        d = data.get(region, {})
+        status = d.get("status", "no_data")
+
+        if status == "not_applicable":
+            annotations.append(f"**{REGION_LABELS[region]}**: N/A (coaching only)")
+            continue
+
+        total = d.get("total_submissions", 0) or 0
+        if status == "active" and total > 0:
+            regions_show.append(REGION_LABELS[region])
+            values.append(total)
+            bar_colors.append(REGION_COLORS[region])
+            teachers = d.get("unique_teachers", 0)
+            per_t = d.get("per_teacher", 0)
+            hover_texts.append(
+                f"Submissions: {total:,}<br>Teachers: {teachers:,}<br>Per teacher: {per_t}"
+            )
+        else:
+            annotations.append(f"**{REGION_LABELS[region]}**: {_no_data_text(status)}")
+
+    if values:
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            y=regions_show,
+            x=values,
+            orientation="h",
+            marker_color=bar_colors,
+            text=[f"{v:,}" for v in values],
+            textposition="outside",
+            hovertext=hover_texts,
+            hoverinfo="text",
+        ))
+
+        base_layout = plotly_layout_defaults(height=250)
+        base_layout["margin"] = dict(t=10, b=40, l=100, r=80)
+        base_layout["yaxis"] = dict(autorange="reversed")
+        base_layout["showlegend"] = False
+        fig.update_layout(**base_layout)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    if annotations:
+        st.caption(" · ".join(annotations))
+
+
+# =============================================================================
+# SECTION 4: RETENTION
+# =============================================================================
+
+def _render_retention_section():
+    st.markdown(section_title("4. Retention (7-day & 30-day)"), unsafe_allow_html=True)
+    _metric_definition_expander("retention")
+
+    data = get_retention_metrics()
+
+    regions_show = []
+    ret_7d = []
+    ret_30d = []
+    annotations = []
+
+    for region in REGION_ORDER:
+        d = data.get(region, {})
+        status = d.get("status", "no_data")
+        r7 = d.get("retention_7d", 0)
+        r30 = d.get("retention_30d", 0)
+
+        if status == "active" and (r7 > 0 or r30 > 0):
+            regions_show.append(REGION_LABELS[region])
+            ret_7d.append(r7)
+            ret_30d.append(r30)
+        else:
+            annotations.append(
+                f"**{REGION_LABELS[region]}**: {_no_data_text(status)}"
+                + (f" ({d.get('total_users', 0):,} users)" if d.get("total_users") else "")
+            )
+
+    if regions_show:
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=regions_show, y=ret_7d,
+            name="7-day",
+            marker_color="#3B82F6",
+            text=[f"{v:.1f}%" for v in ret_7d],
+            textposition="outside",
+        ))
+        fig.add_trace(go.Bar(
+            x=regions_show, y=ret_30d,
+            name="30-day",
+            marker_color="#93C5FD",
+            text=[f"{v:.1f}%" for v in ret_30d],
+            textposition="outside",
         ))
 
         base_layout = plotly_layout_defaults(height=300)
-        base_layout['margin'] = dict(t=10, b=40, l=120, r=60)
-        base_layout['xaxis'] = dict(range=[0, 100], ticksuffix='%')
-        base_layout['yaxis'] = dict(autorange='reversed')
-        fig.update_layout(**base_layout, showlegend=False)
-
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        base_layout["barmode"] = "group"
+        base_layout["yaxis"] = dict(ticksuffix="%", range=[0, max(max(ret_30d, default=0), max(ret_7d, default=0)) * 1.3])
+        base_layout["legend"] = dict(
+            orientation="h", yanchor="bottom", y=1.02,
+            xanchor="right", x=1, font=dict(size=11)
+        )
+        fig.update_layout(**base_layout)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
     else:
-        st.info("Subject scores loading...")
+        st.info("No retention data available yet. Data will appear when users have activity in the last 30 days.")
+
+    if annotations:
+        st.caption(" · ".join(annotations))
 
 
-def render_rumi_dashboard(filters):
-    """Rumi Dashboard - AI coaching, chat sessions, lesson plans."""
+# =============================================================================
+# SECTION 5: FICO SCORES
+# =============================================================================
 
-    # Get data
-    metrics = rumi_queries.get_summary_metrics(filters.get("time_period", "All Time"))
-    conversation_metrics = rumi_queries.get_conversation_metrics()
-    lesson_metrics = rumi_queries.get_lesson_plan_metrics()
+def _render_fico_section():
+    st.markdown(section_title("5. FICO / Observation Scores by Section"), unsafe_allow_html=True)
+    _metric_definition_expander("fico")
 
-    # === HERO ===
-    total_messages = conversation_metrics.get('total_messages', 40728)
+    data = get_fico_metrics()
 
-    st.markdown(
-        hero_metric(
-            f"{total_messages:,}",
-            "Coaching Messages",
-            f"{metrics['teachers']:,} teachers using Rumi AI",
-            color=COLORS['info']
-        ),
-        unsafe_allow_html=True
-    )
+    # Only ICT and Balochistan have FICO data
+    regions_with_data = []
+    annotations = []
 
-    # === KEY METRICS ===
-    col1, col2, col3, col4 = st.columns(4)
+    for region in REGION_ORDER:
+        d = data.get(region, {})
+        status = d.get("status", "no_data")
+        if status == "active":
+            regions_with_data.append(region)
+        elif status == "not_applicable":
+            annotations.append(f"**{REGION_LABELS[region]}**: N/A")
+        else:
+            annotations.append(f"**{REGION_LABELS[region]}**: No data")
+
+    if regions_with_data:
+        sections = ["Section B", "Section C", "Section D"]
+
+        fig = go.Figure()
+        for region in regions_with_data:
+            d = data[region]
+            fig.add_trace(go.Bar(
+                x=sections,
+                y=[d.get("b_avg", 0), d.get("c_avg", 0), d.get("d_avg", 0)],
+                name=f"{REGION_LABELS[region]} ({d.get('type', '')})",
+                marker_color=REGION_COLORS[region],
+                text=[f"{d.get('b_avg', 0):.0f}%", f"{d.get('c_avg', 0):.0f}%", f"{d.get('d_avg', 0):.0f}%"],
+                textposition="outside",
+            ))
+
+        base_layout = plotly_layout_defaults(height=300)
+        base_layout["barmode"] = "group"
+        base_layout["yaxis"] = dict(range=[0, 100], ticksuffix="%")
+        base_layout["legend"] = dict(
+            orientation="h", yanchor="bottom", y=1.02,
+            xanchor="right", x=1, font=dict(size=11)
+        )
+        fig.update_layout(**base_layout)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+        # Insight
+        if "ICT" in regions_with_data and "Balochistan" in regions_with_data:
+            ict_d = data["ICT"]
+            bal_d = data["Balochistan"]
+            st.markdown(
+                insight_card(
+                    f"ICT uses <strong>TEACH Tool (human observers)</strong> while Balochistan uses "
+                    f"<strong>AI + Human</strong> scoring. "
+                    f"Section D (Participation) is weakest across both regions: "
+                    f"ICT {ict_d.get('d_avg', 0):.0f}%, Balochistan {bal_d.get('d_avg', 0):.0f}%.",
+                    title="Cross-Region FICO Comparison"
+                ),
+                unsafe_allow_html=True
+            )
+    else:
+        st.info("FICO score data is only available for regions with classroom observations (ICT and Balochistan).")
+
+    if annotations:
+        st.caption(" · ".join(annotations))
+
+
+# =============================================================================
+# SECTION 6: STUDENT LEARNING
+# =============================================================================
+
+def _render_student_learning_section():
+    st.markdown(section_title("6. Student Learning"), unsafe_allow_html=True)
+    _metric_definition_expander("student_learning")
+
+    data = get_student_learning_metrics()
+
+    col1, col2, col3 = st.columns(3)
+    annotations = []
+
+    # ICT: Effect size
+    ict = data.get("ICT", {})
     with col1:
-        st.markdown(metric_card(f"{metrics['teachers']:,}", "Teachers"), unsafe_allow_html=True)
+        if ict.get("status") == "active":
+            es = ict.get("effect_size", 0.46)
+            st.markdown(
+                f'<div style="border: 1px solid #E5E7EB; border-radius: 8px; padding: 1rem; text-align: center;">'
+                f'<div style="font-size: 2rem; font-weight: 700; color: {REGION_COLORS["ICT"]};">{es}</div>'
+                f'<div style="font-size: 0.75rem; color: #6B7280; margin-top: 0.25rem;">Effect Size (Cohen\'s d)</div>'
+                f'<div style="font-size: 0.6875rem; color: #9CA3AF; margin-top: 0.5rem;">ICT · RCT-validated</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        else:
+            annotations.append("**ICT**: No data")
+
+    # Moawin: Assessment scores
+    moawin = data.get("Moawin", {})
     with col2:
-        st.markdown(metric_card(f"{metrics.get('chat_sessions', 5044):,}", "Chat Sessions"), unsafe_allow_html=True)
+        if moawin.get("status") == "active":
+            avg = moawin.get("avg_score", 0)
+            pr = moawin.get("avg_pass_rate", 0)
+            total = moawin.get("total_assessments", 0)
+            st.markdown(
+                f'<div style="border: 1px solid #E5E7EB; border-radius: 8px; padding: 1rem; text-align: center;">'
+                f'<div style="font-size: 2rem; font-weight: 700; color: {REGION_COLORS["Moawin"]};">{avg:.0f}%</div>'
+                f'<div style="font-size: 0.75rem; color: #6B7280; margin-top: 0.25rem;">Avg Assessment Score</div>'
+                f'<div style="font-size: 0.6875rem; color: #9CA3AF; margin-top: 0.5rem;">'
+                f'Moawin · {pr:.0f}% pass rate · {total:,} assessments</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        else:
+            annotations.append("**Moawin**: No data")
+
+    # Rumi: Reading assessments
+    rumi = data.get("Rumi", {})
     with col3:
-        lesson_plans = lesson_metrics.get('total_lesson_plans', 1815)
-        st.markdown(metric_card(f"{lesson_plans:,}", "Lesson Plans"), unsafe_allow_html=True)
-    with col4:
-        ai_sessions = metrics.get('ai_sessions', 135)
-        st.markdown(metric_card(str(ai_sessions), "Audio Sessions", COLORS['info']), unsafe_allow_html=True)
+        if rumi.get("status") == "active":
+            total = rumi.get("total_assessments", 197)
+            st.markdown(
+                f'<div style="border: 1px solid #E5E7EB; border-radius: 8px; padding: 1rem; text-align: center;">'
+                f'<div style="font-size: 2rem; font-weight: 700; color: {REGION_COLORS["Rumi"]};">{total}</div>'
+                f'<div style="font-size: 0.75rem; color: #6B7280; margin-top: 0.25rem;">WCPM Assessments</div>'
+                f'<div style="font-size: 0.6875rem; color: #9CA3AF; margin-top: 0.5rem;">Rumi · Reading assessments</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        else:
+            annotations.append("**Rumi**: No data")
 
-    st.markdown(divider(), unsafe_allow_html=True)
+    # Others with no data
+    for region in ["Balochistan", "RWP"]:
+        d = data.get(region, {})
+        if d.get("status") != "active":
+            annotations.append(f"**{REGION_LABELS[region]}**: {_no_data_text(d.get('status', 'no_data'))}")
 
-    # === TWO COLUMN LAYOUT ===
-    col1, col2 = st.columns(2)
+    if annotations:
+        st.caption(" · ".join(annotations))
 
-    with col1:
-        st.markdown(section_title("Engagement Metrics"), unsafe_allow_html=True)
 
-        active_7d = conversation_metrics.get('active_users_7d', 89)
-        active_30d = conversation_metrics.get('active_users_30d', 234)
-        avg_per_session = conversation_metrics.get('avg_messages_per_session', 8.1)
+# =============================================================================
+# SUMMARY TABLE
+# =============================================================================
 
-        st.markdown(metric_card(str(active_7d), "Active Users (7d)", COLORS['success']), unsafe_allow_html=True)
-        st.markdown(metric_card(str(active_30d), "Active Users (30d)"), unsafe_allow_html=True)
-        st.markdown(metric_card(f"{avg_per_session:.1f}", "Avg Msgs/Session"), unsafe_allow_html=True)
+def _render_summary_table():
+    st.markdown(section_title("Summary: All Metrics x All Regions"), unsafe_allow_html=True)
 
-    with col2:
-        st.markdown(section_title("Content Generation"), unsafe_allow_html=True)
+    obs = get_observation_metrics()
+    lp = get_lp_engagement_metrics()
+    training = get_training_metrics()
+    retention = get_retention_metrics()
+    fico = get_fico_metrics()
+    learning = get_student_learning_metrics()
 
-        unique_teachers = lesson_metrics.get('unique_teachers', 312)
-        reading_assessments = 197  # Known value from Rumi
+    rows = []
 
-        st.markdown(metric_card(f"{lesson_plans:,}", "Lesson Plans Created"), unsafe_allow_html=True)
-        st.markdown(metric_card(str(unique_teachers), "Teachers Creating"), unsafe_allow_html=True)
-        st.markdown(metric_card(str(reading_assessments), "Reading Assessments"), unsafe_allow_html=True)
+    # Row 1: Observations
+    row = {"Metric": "Observations"}
+    for region in REGION_ORDER:
+        d = obs.get(region, {})
+        if d.get("status") == "active" and d.get("actual") is not None:
+            val = d["actual"]
+            row[REGION_LABELS[region]] = f"{val:,}"
+        else:
+            row[REGION_LABELS[region]] = _no_data_text(d.get("status", "no_data"))
+    rows.append(row)
 
-    st.markdown(divider(), unsafe_allow_html=True)
+    # Row 2: LP Engagement
+    row = {"Metric": "LP Events"}
+    for region in REGION_ORDER:
+        d = lp.get(region, {})
+        if d.get("status") == "active" and d.get("total_events", 0) > 0:
+            row[REGION_LABELS[region]] = f"{d['total_events']:,}"
+        else:
+            row[REGION_LABELS[region]] = _no_data_text(d.get("status", "no_data"))
+    rows.append(row)
 
-    # === INSIGHT ===
-    st.markdown(
-        insight_card(
-            f"Rumi has facilitated <strong>{total_messages:,} coaching conversations</strong> with {metrics['teachers']:,} teachers. "
-            f"<strong>{lesson_plans:,} lesson plans</strong> generated, showing active content creation. "
-            "AI audio sessions provide real-time feedback on teaching practice.",
-            title="AI Coaching Impact"
-        ),
-        unsafe_allow_html=True
+    # Row 3: Training
+    row = {"Metric": "Training Submissions"}
+    for region in REGION_ORDER:
+        d = training.get(region, {})
+        if d.get("status") == "not_applicable":
+            row[REGION_LABELS[region]] = "N/A"
+        elif d.get("status") == "active" and (d.get("total_submissions") or 0) > 0:
+            row[REGION_LABELS[region]] = f"{d['total_submissions']:,}"
+        else:
+            row[REGION_LABELS[region]] = _no_data_text(d.get("status", "no_data"))
+    rows.append(row)
+
+    # Row 4: Retention (30d)
+    row = {"Metric": "30-day Retention"}
+    for region in REGION_ORDER:
+        d = retention.get(region, {})
+        r30 = d.get("retention_30d", 0)
+        if d.get("status") == "active" and r30 > 0:
+            row[REGION_LABELS[region]] = f"{r30:.1f}%"
+        else:
+            row[REGION_LABELS[region]] = _no_data_text(d.get("status", "no_data"))
+    rows.append(row)
+
+    # Row 5: FICO (avg of B+C+D)
+    row = {"Metric": "FICO Avg Score"}
+    for region in REGION_ORDER:
+        d = fico.get(region, {})
+        if d.get("status") == "active":
+            avg = (d.get("b_avg", 0) + d.get("c_avg", 0) + d.get("d_avg", 0)) / 3
+            row[REGION_LABELS[region]] = f"{avg:.0f}%"
+        elif d.get("status") == "not_applicable":
+            row[REGION_LABELS[region]] = "N/A"
+        else:
+            row[REGION_LABELS[region]] = "—"
+    rows.append(row)
+
+    # Row 6: Student Learning
+    row = {"Metric": "Student Learning"}
+    for region in REGION_ORDER:
+        d = learning.get(region, {})
+        if d.get("status") != "active":
+            row[REGION_LABELS[region]] = _no_data_text(d.get("status", "no_data"))
+        elif d.get("type") == "RCT Effect Size":
+            row[REGION_LABELS[region]] = f"ES {d.get('effect_size', 0)}"
+        elif d.get("type") == "Assessment Scores":
+            row[REGION_LABELS[region]] = f"{d.get('avg_score', 0):.0f}%"
+        elif d.get("type") == "WCPM Reading Assessment":
+            row[REGION_LABELS[region]] = f"{d.get('total_assessments', 0)} WCPM"
+        else:
+            row[REGION_LABELS[region]] = "—"
+    rows.append(row)
+
+    df = pd.DataFrame(rows)
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Metric": st.column_config.TextColumn("Metric", width="medium"),
+        }
     )
-
-
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
-
-def render_fico_bar_chart(fico: dict):
-    """Render FICO framework scores as horizontal bar chart."""
-
-    # Extract scores from sections
-    sections = ['B', 'C', 'D']
-    section_names = ['B: Explanation', 'C: Understanding', 'D: Participation']
-    scores = []
-    targets = [75, 70, 70]
-
-    for section in sections:
-        section_data = fico.get(f'section_{section.lower()}', {})
-        avg = section_data.get('avg', section_data.get('average', 60))
-        scores.append(avg)
-
-    if not any(scores):
-        scores = [68, 58, 45]  # Fallback values
-
-    colors = [COLORS['success'] if s >= t else COLORS['error'] for s, t in zip(scores, targets)]
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Bar(
-        y=section_names,
-        x=scores,
-        orientation='h',
-        marker_color=colors,
-        text=[f'{s:.0f}%' for s in scores],
-        textposition='outside'
-    ))
-
-    # Target markers
-    fig.add_trace(go.Scatter(
-        y=section_names,
-        x=targets,
-        mode='markers',
-        marker=dict(symbol='line-ns', size=20, color='#9CA3AF', line_width=2),
-        name='Target'
-    ))
-
-    base_layout = plotly_layout_defaults(height=200)
-    base_layout['margin'] = dict(t=10, b=40, l=140, r=60)
-    base_layout['xaxis'] = dict(range=[0, 100], ticksuffix='%')
-    base_layout['yaxis'] = dict(autorange='reversed')
-    fig.update_layout(**base_layout, showlegend=False)
-
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
 
 if __name__ == "__main__":

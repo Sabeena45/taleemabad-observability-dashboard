@@ -4,23 +4,32 @@ Data source: BigQuery unified views (niete-bq-prod.taleemabad_analytics)
 
 Uses unified cross-program views filtered to program = 'rawalpindi'.
 
-Verified counts (Feb 2026):
-- 21 schools (from rwp_proddb)
-- 143 teachers
-- 0 students (no student data yet)
+Program parameters (user-provided Feb 2026):
+- 260 schools
+- 900 teachers
+- 37,000 students
+- 4 Training Managers + 23 AEOs = 27 coaches
+- Observation benchmark: 27 coaches x 4 obs/day x 22 days = 2,376/month
+
+BigQuery counts (Feb 2026 - data still populating):
+- 21 schools in BigQuery (260 total in program)
+- 143 teachers in BigQuery (900 total in program)
+- 0 students in BigQuery (37,000 total in program)
 - 196 users
 - 444,656 analytics events
 """
 from typing import Dict, Any, List
 from .db_connections import query_islamabad
 
-# Fallback values from BigQuery unified views (Feb 2026)
+# Program parameters (user-provided, Feb 2026)
+# BigQuery unified views may show lower counts as data is still populating
 RAWALPINDI_KNOWN_VALUES = {
-    "schools": 21,
-    "teachers": 143,
-    "students": 0,
+    "schools": 260,
+    "teachers": 900,
+    "students": 37000,
     "users": 196,
     "events": 444656,
+    "coaches": 27,  # 4 TMs + 23 AEOs
 }
 
 # All queries use the taleemabad_analytics dataset (unified views)
