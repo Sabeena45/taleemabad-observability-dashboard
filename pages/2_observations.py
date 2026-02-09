@@ -364,12 +364,8 @@ def render_rumi_observations(filters):
     ))
 
     base_layout = plotly_layout_defaults(height=240)
-    fig.update_layout(
-        **base_layout,
-        showlegend=False,
-        xaxis=dict(showgrid=False),
-        yaxis=dict(showgrid=True, gridcolor='#F3F4F6', zeroline=False)
-    )
+    base_layout['showlegend'] = False
+    fig.update_layout(**base_layout)
 
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
@@ -410,20 +406,15 @@ def render_trend_view(filters):
     ))
 
     base_layout = plotly_layout_defaults(height=280)
-    fig.update_layout(
-        **base_layout,
-        legend=dict(
-            orientation='h',
-            yanchor='bottom',
-            y=1.02,
-            xanchor='right',
-            x=1,
-            font=dict(size=11, family="Inter, -apple-system, sans-serif")
-        ),
-        xaxis=dict(showgrid=False),
-        yaxis=dict(showgrid=True, gridcolor='#F3F4F6', zeroline=False),
-        hovermode='x unified'
+    base_layout['legend'] = dict(
+        orientation='h',
+        yanchor='bottom',
+        y=1.02,
+        xanchor='right',
+        x=1,
+        font=dict(size=11, family="Inter, -apple-system, sans-serif")
     )
+    fig.update_layout(**base_layout)
 
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
@@ -543,8 +534,6 @@ def render_recent_observations(filters, region: str):
 
     for obs in observations:
         obs_type = obs['type']
-        border_color = COLORS['info'] if obs_type == 'AI' else COLORS['success']
-        sc = score_color(obs['score'], 70)
 
         st.markdown(
             obs_card(
@@ -553,9 +542,7 @@ def render_recent_observations(filters, region: str):
                 subject=obs["subject"],
                 score=obs["score"],
                 date=obs["date"],
-                obs_type=obs_type,
-                border_color=border_color,
-                score_color=sc
+                obs_type=obs_type
             ),
             unsafe_allow_html=True
         )

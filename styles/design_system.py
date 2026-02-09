@@ -606,10 +606,11 @@ def grade_row(label: str, value: float, color: str) -> str:
     )
 
 
-def rec_card(title: str, description: str) -> str:
+def rec_card(title: str, description: str, color: str = None) -> str:
     """Generate HTML for a recommendation card."""
+    border_style = f' border-left: 3px solid {color};' if color else ''
     return (
-        f'<div class="rec-card">'
+        f'<div class="rec-card" style="{border_style}">'
         f'<strong>{title}</strong><br>'
         f'<span style="color: #6B7280; font-size: 0.8125rem;">{description}</span>'
         f'</div>'
