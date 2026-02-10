@@ -1,8 +1,10 @@
 """
 Database connection management for the observability dashboard.
-Handles connections to Balochistan, Islamabad, and Moawin databases.
+Handles connections to Balochistan, Islamabad, Moawin, and Rumi databases.
 """
 import os
+import base64
+import tempfile
 from typing import Optional, Any, Dict
 from functools import lru_cache
 from urllib.parse import urlparse
@@ -145,6 +147,8 @@ _bigquery_client = None
 def get_bigquery_client():
     """
     Get BigQuery client for Islamabad data.
+    Supports Railway deployment via GOOGLE_CREDENTIALS_JSON (base64-encoded)
+    and local development via GOOGLE_APPLICATION_CREDENTIALS file path.
 
     Returns:
         BigQuery client or None if unavailable
@@ -159,12 +163,31 @@ def get_bigquery_client():
         return _bigquery_client
 
     try:
-        # Set credentials path
+        # Option 1: Base64-encoded credentials (Railway deployment)
+        credentials_b64 = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+        if credentials_b64:
+            credentials_json = base64.b64decode(credentials_b64).decode("utf-8")
+            tmp = tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            )
+            tmp.write(credentials_json)
+            tmp.close()
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = tmp.name
+            _bigquery_client = bigquery.Client(
+                project=ISLAMABAD_CONFIG["project_id"]
+            )
+            return _bigquery_client
+
+        # Option 2: Local credentials file path
         if os.path.exists(ISLAMABAD_CONFIG["credentials_path"]):
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ISLAMABAD_CONFIG["credentials_path"]
+            _bigquery_client = bigquery.Client(
+                project=ISLAMABAD_CONFIG["project_id"]
+            )
+            return _bigquery_client
 
-        _bigquery_client = bigquery.Client(project=ISLAMABAD_CONFIG["project_id"])
-        return _bigquery_client
+        print("No BigQuery credentials found (set GOOGLE_CREDENTIALS_JSON or GOOGLE_APPLICATION_CREDENTIALS)")
+        return None
     except Exception as e:
         print(f"BigQuery client error: {e}")
         return None
